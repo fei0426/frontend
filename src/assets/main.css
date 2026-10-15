@@ -4,13 +4,91 @@
   box-sizing: border-box;
 }
 
+html,
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
   background: #f1f5f9;
   color: #1e293b;
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+}
+
+/* 各功能页统一的标题与说明 */
+.page-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.page-desc {
+  margin: 0 0 20px;
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 权限码这类需要等宽字体的场合 */
+.perm-code {
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+
+/* 页面统一的白色面板，用来承载列表、表单这类成组内容 */
+.panel {
+  background: #ffffff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.panel + .panel {
+  margin-top: 16px;
+}
+
+.panel-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* 页面头部：标题在左，操作按钮在右 */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* 概览数字 */
+.stat-label {
+  color: #909399;
+  font-size: 13px;
+}
+
+.stat-value {
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.muted {
+  color: #909399;
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.toolbar-right {
+  margin-left: auto;
 }
