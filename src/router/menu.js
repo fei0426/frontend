@@ -3,12 +3,14 @@ import {
   ChatDotRound,
   Checked,
   CreditCard,
+  Download,
   Grid,
   Reading,
   School,
   Search,
   Setting,
   Tickets,
+  UploadFilled,
   User
 } from '@element-plus/icons-vue'
 
@@ -25,6 +27,8 @@ import NoticeView from '../views/NoticeView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import KnowledgeView from '../views/KnowledgeView.vue'
 import UserManageView from '../views/UserManageView.vue'
+import FileUploadView from '../views/FileUploadView.vue'
+import FileDownloadView from '../views/FileDownloadView.vue'
 
 /** 菜单项工厂。meta.permission 为空表示所有登录用户可见。 */
 function item(path, name, component, title, permission, icon) {
@@ -55,6 +59,15 @@ export const menuTree = [
       item('/services', 'services', ServicesView, '服务事项', 'service:item:list', Grid),
       item('/my-requests', 'my-requests', MyRequestsView, '我的申请', 'service:request:list', Tickets),
       item('/approvals', 'approvals', ApprovalView, '待办审批', 'service:approval:handle', Checked)
+    ]
+  },
+  {
+    key: 'file',
+    title: '文件中心',
+    icon: UploadFilled,
+    children: [
+      item('/files/upload', 'file-upload', FileUploadView, '文件上传', '', UploadFilled),
+      item('/files/download', 'file-download', FileDownloadView, '文件下载', '', Download)
     ]
   },
   item('/lostfound', 'lostfound', LostFoundView, '失物招领', 'service:lost:list', Search),
