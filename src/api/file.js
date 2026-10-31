@@ -1,135 +1,146 @@
+import axios from 'axios'
 import request from './request'
 
 /**
- * 后端接口还没合入时保持 true，前端可独立演示；
- * A/B 的接口就绪后改成 false，页面代码不用动。
+ * 文件服务接口：分片上传、小文件批量上传、文件列表与 Range 分段下载。
+ * 全局 request 的响应拦截器已经把 axios 响应解包成后端的 { code, message, data }，
+ * 这里统一再取一层 data，页面拿到的就是接口 data 字段本身。
  */
-export const USE_MOCK = true
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-// 演示用：指定第 0 片连续 3 次校验失败（正好耗尽前端自动重试），保证能演示“重传失败分片”
-let badChunkIndex = -1
-let badChunkAttempts = 0
-
-export function setSimulateBadChunk(v) {
-  badChunkIndex = v ? 0 : -1
-  badChunkAttempts = 0
+function unwrap(res) {
+  if (!res || res.code !== 1) throw new Error((res && res.message) || '请求失败')
+  return res.data
 }
 
 /* ==================== 大文件分片上传 ==================== */
 
-const mockUploads = new Map()
-let mockSeq = 1
-
-// 初始化：拿 uploadId + 服务端已存在的分片列表（断点续传就靠这个）
-export function initUpload({ fileName, fileSize, chunkSize, fileMd5 }) {
-  if (!USE_MOCK) return request.post('/file/init', { fileName, fileSize, chunkSize, fileMd5 })
-  const uploadId = `mock-${mockSeq++}`
-  mockUploads.set(uploadId, { chunks: new Set(), fileName, fileSize })
-  return Promise.resolve({ uploadId, uploadedChunks: [] })
+/**
+ * 初始化上传：服务端返回 uploadId、最终采用的 chunkSize 与已存在的分片列表，
+ * 断点续传（刷新后重新 init 仍是同一个 uploadId）就靠 uploadedChunks 判断。
+ */
+export async function initUpload({ fileName, fileSize, fileMd5, chunkSize, totalChunks }) {
+  const res = await request.post('/file/init', {
+    fileName,
+    fileSize,
+    fileMd5,
+    chunkSize,
+    totalChunks
+  })
+  return unwrap(res)
 }
 
-// 上传单个分片
-export function uploadChunk({ uploadId, index, blob, onProgress, signal }) {
-  if (!USE_MOCK) {
-    const fd = new FormData()
-    fd.append('uploadId', uploadId)
-    fd.append('index', index)
-    fd.append('chunk', blob)
-    return request.post('/file/chunk', fd, {
-      signal,
-      onUploadProgress: (e) => onProgress && onProgress(e.loaded / blob.size)
-    })
-  }
-  return new Promise((resolve, reject) => {
-    let loaded = 0
-    const timer = setInterval(() => {
-      loaded += blob.size / 5
-      onProgress && onProgress(Math.min(loaded / blob.size, 1))
-      if (loaded >= blob.size) {
-        clearInterval(timer)
-        // 开关打开时，固定让 badChunkIndex 那一片连续失败 3 次，把前端 2 次自动重试也耗光
-        if (index === badChunkIndex && badChunkAttempts < 3) {
-          badChunkAttempts++
-          return reject(new Error('分片校验失败'))
-        }
-        // 平时保留约 8% 的随机损坏，模拟真实网络环境
-        if (Math.random() < 0.08) return reject(new Error('分片校验失败'))
-        mockUploads.get(uploadId)?.chunks.add(index)
-        resolve({ index })
-      }
-    }, 150)
+// 上传单个分片：chunkMd5 必须与分片内容一致，服务端据此判断分片是否损坏
+export async function uploadChunk({ uploadId, index, chunkMd5, blob, onProgress, signal }) {
+  const fd = new FormData()
+  fd.append('uploadId', uploadId)
+  fd.append('index', index)
+  fd.append('chunkMd5', chunkMd5)
+  fd.append('file', blob)
+  const res = await request.post('/file/chunk', fd, {
+    signal,
+    timeout: 0,
+    onUploadProgress: (e) => {
+      if (onProgress) onProgress(e.total ? e.loaded / e.total : Math.min(1, e.loaded / blob.size))
+    }
   })
+  return unwrap(res)
 }
 
-// 全部分片到齐后通知后端合并
-export function mergeUpload({ uploadId, fileName, totalChunks }) {
-  if (!USE_MOCK) return request.post('/file/merge', { uploadId, fileName, totalChunks })
-  return sleep(400).then(() => {
-    // 合并成功后把文件放进模拟文件库，切到下载页就能看到
-    const rec = mockUploads.get(uploadId)
-    if (rec) mockFiles.unshift({ id: `up-${mockSeq++}`, name: fileName, size: rec.fileSize })
-    return { fileUrl: `/files/${fileName}` }
-  })
+// 分片全部到齐后合并
+export async function mergeUpload({ uploadId }) {
+  const res = await request.post('/file/merge', { uploadId })
+  return unwrap(res)
 }
 
 /* ==================== 小文件批量上传 ==================== */
 
-export function uploadSmall({ file, onProgress }) {
-  if (!USE_MOCK) {
-    const fd = new FormData()
-    fd.append('file', file)
-    return request.post('/file/small', fd, {
-      onUploadProgress: (e) => onProgress && onProgress(e.loaded / file.size)
-    })
-  }
-  return new Promise((resolve) => {
-    let p = 0
-    const timer = setInterval(() => {
-      p += 0.2
-      onProgress && onProgress(Math.min(p, 1))
-      if (p >= 1) {
-        clearInterval(timer)
-        // 小文件上传完成也进模拟文件库，下载页可见
-        mockFiles.unshift({ id: `up-${mockSeq++}`, name: file.name, size: file.size })
-        resolve({ ok: true })
+// 多个文件都用同一个字段名 files 追加
+export async function uploadSmall({ files, onProgress }) {
+  const fd = new FormData()
+  files.forEach((file) => fd.append('files', file))
+  const total = files.reduce((sum, file) => sum + file.size, 0)
+  const res = await request.post('/file/small', fd, {
+    timeout: 0,
+    onUploadProgress: (e) => {
+      if (onProgress) {
+        onProgress(e.total ? e.loaded / e.total : total ? Math.min(1, e.loaded / total) : 0)
       }
-    }, 120)
+    }
   })
+  return unwrap(res)
 }
 
 /* ==================== 下载 ==================== */
 
-const mockFiles = [
-  { id: 'demo-1', name: '校园通使用手册.pdf', size: 6 * 1024 * 1024 },
-  { id: 'demo-2', name: '学期课表.xlsx', size: 2 * 1024 * 1024 },
-  { id: 'demo-3', name: '宣传视频.mp4', size: 12 * 1024 * 1024 }
-]
+/**
+ * 下载要读取 Content-Range 响应头，而全局实例的拦截器只返回 response.data，
+ * 所以这里单独建一个实例，同样注入登录令牌，但保留完整响应头。
+ */
+const downloadClient = axios.create({ baseURL: '/api', timeout: 0 })
+downloadClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('rbac_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
-export function listFiles() {
-  return USE_MOCK ? Promise.resolve(mockFiles) : request.get('/file/list')
+// 从 "bytes start-end/total" 里解析出文件总大小
+function parseContentRange(value) {
+  if (!value) return null
+  const match = /\/\s*(\d+)/.exec(value)
+  return match ? Number(match[1]) : null
+}
+
+// 下载失败时把 blob 错误体还原成后端 message
+async function toRangeError(error) {
+  if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError') return error
+  const status = error.response && error.response.status
+  let message = error.message
+  const body = error.response && error.response.data
+  if (body instanceof Blob) {
+    try {
+      const json = JSON.parse(await body.text())
+      if (json && json.message) message = json.message
+    } catch {
+      // 错误体不是 JSON 就保留原提示
+    }
+  } else if (body && body.message) {
+    message = body.message
+  }
+  if (status === 416) message = '下载范围越界（Range 不被接受）'
+  const err = new Error(message)
+  err.status = status
+  return err
 }
 
 /**
- * 按 Range 下载一段字节。
- * 服务端必须返回 206 Partial Content，否则说明没走 Range。
+ * 按 Range 下载一段字节，返回 { blob, status, contentRange, total }。
+ * 服务端正常返回 206 Partial Content 并带 Content-Range；范围越界会返回 416。
  */
-export function downloadRange(fileId, start, end, signal) {
-  if (!USE_MOCK) {
-    return fetch(`/api/file/download/${fileId}`, {
-      headers: { Range: `bytes=${start}-${end}` },
-      signal
-    }).then((res) => {
-      if (res.status !== 206) throw new Error('服务端未返回 206，Range 下载没生效')
-      return res.arrayBuffer()
-    })
+export async function downloadRange(fileId, start, end, signal) {
+  const headers = {}
+  if (typeof start === 'number' && typeof end === 'number') {
+    headers.Range = `bytes=${start}-${end}`
   }
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => resolve(new Uint8Array(end - start + 1)), 200)
-    signal?.addEventListener('abort', () => {
-      clearTimeout(timer)
-      reject(new DOMException('已暂停', 'AbortError'))
+  try {
+    const res = await downloadClient.get(`/file/download/${fileId}`, {
+      headers,
+      responseType: 'blob',
+      signal
     })
-  })
+    return {
+      blob: res.data,
+      status: res.status,
+      contentRange: res.headers['content-range'] || '',
+      total: parseContentRange(res.headers['content-range'])
+    }
+  } catch (error) {
+    throw await toRangeError(error)
+  }
+}
+
+/* ==================== 文件列表 ==================== */
+
+export async function listFiles() {
+  const res = await request.get('/file/list')
+  return unwrap(res) || []
 }
