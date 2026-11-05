@@ -5,13 +5,16 @@ import {
   CreditCard,
   Download,
   Grid,
+  Key,
+  Lock,
   Reading,
   School,
   Search,
   Setting,
   Tickets,
   UploadFilled,
-  User
+  User,
+  UserFilled
 } from '@element-plus/icons-vue'
 
 import ChatView from '../views/ChatView.vue'
@@ -27,6 +30,7 @@ import NoticeView from '../views/NoticeView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import KnowledgeView from '../views/KnowledgeView.vue'
 import UserManageView from '../views/UserManageView.vue'
+import RoleManageView from '../views/RoleManageView.vue'
 import FileUploadView from '../views/FileUploadView.vue'
 import FileDownloadView from '../views/FileDownloadView.vue'
 
@@ -77,8 +81,9 @@ export const menuTree = [
     title: '管理后台',
     icon: Setting,
     children: [
-      item('/knowledge', 'knowledge', KnowledgeView, '知识库管理', 'qa:knowledge:list', Grid),
-      item('/users', 'users', UserManageView, '用户管理', 'system:user:list', User)
+      item('/users', 'users', UserManageView, '用户管理', 'system:user:list', User),
+      item('/roles', 'roles', RoleManageView, '角色管理', 'system:role:view', UserFilled),
+      item('/knowledge', 'knowledge', KnowledgeView, '知识库管理', 'qa:knowledge:list', Grid)
     ]
   }
 ]
