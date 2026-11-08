@@ -1,9 +1,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserList } from '../api/user'
-import { getAllRoles, getUserRole, assignUserRole } from '../api/role'
-import { permission } from '../directives/permission'
+import { ElMessage } from 'element-plus'
+import { getUserList, getUserRole, assignUserRole } from '../api/user'
+import { getAllRoles } from '../api/role'
 
 // ========== 用户列表 ==========
 const loading = ref(false)
@@ -45,7 +44,7 @@ function handleSizeChange(size) {
 // ========== 分配角色 ==========
 const assignDialogVisible = ref(false)
 const currentUser = ref(null)
-const selectedRoleId = ref(null)
+const selectedRoleCode = ref(null)
 const roleOptions = ref([])
 
 // 打开分配角色弹窗
@@ -56,15 +55,19 @@ async function handleAssignRole(row) {
     roleOptions.value = await getAllRoles()
   }
   // 查询当前用户的角色
-  const userRole = await getUserRole(row.id)
-  selectedRoleId.value = userRole.roleId
+  const userRole = await getUserRole(row.userId)
+  selectedRoleCode.value = userRole.roleCode
   assignDialogVisible.value = true
 }
 
 // 保存角色分配
 async function saveAssignRole() {
+  if (!selectedRoleCode.value) {
+    ElMessage.warning('请选择角色')
+    return
+  }
   try {
-    await assignUserRole(currentUser.value.id, selectedRoleId.value)
+    await assignUserRole(currentUser.value.userId, selectedRoleCode.value)
     ElMessage.success('分配成功')
     assignDialogVisible.value = false
     fetchList()
@@ -75,14 +78,14 @@ async function saveAssignRole() {
 
 // 状态标签
 function statusTag(status) {
-  if (status === 1) return 'success'
-  if (status === 2) return 'warning'
+  if (status === 'ACTIVE') return 'success'
+  if (status === 'LOCKED') return 'warning'
   return 'danger'
 }
 
 function statusText(status) {
-  if (status === 1) return '正常'
-  if (status === 2) return '锁定'
+  if (status === 'ACTIVE') return '正常'
+  if (status === 'LOCKED') return '锁定'
   return '停用'
 }
 
@@ -116,31 +119,30 @@ onMounted(() => {
 
     <!-- 表格 -->
     <el-table :data="list" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="账号" width="120" />
-      <el-table-column prop="realName" label="姓名" width="100" />
+      <el-table-column prop="userId" label="ID" width="80" />
       <el-table-column prop="userNo" label="学号/工号" width="120" />
-      <el-table-column prop="userTypeName" label="用户类型" width="100" />
-      <el-table-column prop="roleName" label="角色" width="100">
+      <el-table-column prop="name" label="姓名" width="100" />
+      <el-table-column prop="deptName" label="部门" width="120" />
+      <el-table-column label="角色" width="120">
         <template #default="{ row }">
-          <el-tag v-if="row.roleName" type="info" effect="light">
-            {{ row.roleName }}
+          <el-tag v-if="row.roles && row.roles.length" type="info" effect="light">
+            {{ row.roles.join('、') }}
           </el-tag>
           <span v-else style="color: #c0c4cc">-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="phone" label="手机号" width="130" />
+      <el-table-column prop="mobile" label="手机号" width="130" />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.accountStatus)" effect="light">
-            {{ statusText(row.accountStatus) }}
+          <el-tag :type="statusTag(row.status)" effect="light">
+            {{ statusText(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-permission="'system:user:edit'"
+            v-permission="'system:role:assign'"
             type="primary"
             link
             @click="handleAssignRole(row)"
@@ -174,16 +176,16 @@ onMounted(() => {
     >
       <div v-if="currentUser" style="margin-bottom: 16px">
         <p style="margin: 0 0 8px; color: #606266">
-          用户：<b>{{ currentUser.realName }}</b>（{{ currentUser.username }}）
+          用户：<b>{{ currentUser.name }}</b>（{{ currentUser.userNo }}）
         </p>
         <p style="margin: 0; color: #909399; font-size: 13px">
-          当前角色：{{ currentUser.roleName || '未分配' }}
+          当前角色：{{ currentUser.roles && currentUser.roles.length ? currentUser.roles.join('、') : '未分配' }}
         </p>
       </div>
       <el-form label-width="80px">
         <el-form-item label="选择角色">
           <el-select
-            v-model="selectedRoleId"
+            v-model="selectedRoleCode"
             placeholder="请选择角色"
             style="width: 100%"
             clearable
@@ -192,7 +194,7 @@ onMounted(() => {
               v-for="role in roleOptions"
               :key="role.id"
               :label="role.roleName"
-              :value="role.id"
+              :value="role.roleCode"
             />
           </el-select>
         </el-form-item>

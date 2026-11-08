@@ -1,8 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell } from '@element-plus/icons-vue'
+import { Bell, Menu } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
 import { menuTree } from '../router/menu'
@@ -16,6 +16,24 @@ const router = useRouter()
 const unreadCount = computed(() => notices.filter((item) => item.unread).length)
 
 const noticeVisible = ref(false)
+const mobileMenuOpen = ref(false)
+const isMobile = ref(false)
+let mediaQuery
+
+function syncViewport(event) {
+  isMobile.value = event.matches
+  if (!event.matches) mobileMenuOpen.value = false
+}
+
+onMounted(() => {
+  mediaQuery = window.matchMedia('(max-width: 900px)')
+  syncViewport(mediaQuery)
+  mediaQuery.addEventListener('change', syncViewport)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener('change', syncViewport)
+})
 
 /** 点一条就标为已读，弹窗保持打开，方便看出角标在减 */
 function openNotice(item) {
@@ -65,14 +83,24 @@ async function handleLogout() {
 
 <template>
   <el-container class="layout">
-    <el-aside width="220px" class="layout-aside">
+    <div v-if="isMobile && mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false" />
+    <el-aside
+      width="220px"
+      class="layout-aside"
+      :class="{ 'is-mobile-open': mobileMenuOpen }"
+    >
       <div class="layout-brand">
         <span class="layout-logo">🎓</span>
         <span class="layout-brand-text">校园通</span>
       </div>
 
       <el-scrollbar class="layout-scroll">
-        <el-menu :default-active="route.path" router class="layout-menu">
+        <el-menu
+          :default-active="route.path"
+          router
+          class="layout-menu"
+          @select="mobileMenuOpen = false"
+        >
           <template v-for="node in visibleMenus" :key="node.key || node.path">
             <el-sub-menu v-if="node.children" :index="node.key">
               <template #title>
@@ -100,7 +128,17 @@ async function handleLogout() {
 
     <el-container>
       <el-header class="layout-header">
-        <h1 class="layout-page-title">{{ pageTitle }}</h1>
+        <div class="header-left">
+          <el-button
+            v-if="isMobile"
+            class="mobile-menu-button"
+            :icon="Menu"
+            text
+            circle
+            @click="mobileMenuOpen = !mobileMenuOpen"
+          />
+          <h1 class="layout-page-title">{{ pageTitle }}</h1>
+        </div>
 
         <div class="layout-header-right">
           <el-popover
@@ -183,6 +221,7 @@ async function handleLogout() {
   flex-direction: column;
   background: #ffffff;
   border-right: 1px solid #e4e7ed;
+  transition: transform 0.2s ease;
 }
 
 .layout-brand {
@@ -226,6 +265,17 @@ async function handleLogout() {
   font-weight: 500;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-menu-button {
+  display: none;
+}
+
 .layout-header-right {
   display: flex;
   align-items: center;
@@ -239,6 +289,56 @@ async function handleLogout() {
 .layout-main {
   background: #f5f7fa;
   padding: 20px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+@media (max-width: 900px) {
+  .layout-aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1001;
+    width: 220px !important;
+    transform: translateX(-100%);
+  }
+
+  .layout-aside.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .layout-header {
+    padding: 0 12px;
+  }
+
+  .layout-header-right {
+    gap: 6px;
+  }
+
+  .layout-header-right .el-tag,
+  .layout-user,
+  .layout-header-right .el-divider {
+    display: none;
+  }
+
+  .layout-main {
+    padding: 12px;
+  }
+
+  .layout-page-title {
+    overflow: hidden;
+    max-width: 170px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 </style>
 
