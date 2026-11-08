@@ -28,7 +28,12 @@ request.interceptors.response.use(
   (error) => {
     const status = error.response?.status
 
-    if (status === 401) {
+    const isLoginRequest = error.config?.url?.includes('/auth/login')
+
+    if (status === 401 && isLoginRequest) {
+      // 登录接口的 401 表示用户名/密码错误，交给登录页提示，不清除已有会话
+      ElMessage.error(error.response?.data?.message || '用户名或密码错误')
+    } else if (status === 401) {
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('rbac_token')
       localStorage.removeItem('rbac_mock_user')
