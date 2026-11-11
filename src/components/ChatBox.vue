@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick } from 'vue'
+import request from '../api/request'
 
 const messages = ref([
   { role: 'assistant', text: '你好！我是校园通助手，有什么可以帮你的？' }
@@ -7,6 +8,11 @@ const messages = ref([
 const userInput = ref('')
 const loading = ref(false)
 const chatBodyRef = ref(null)
+const sessionId = ref('')
+
+function citationText(citation) {
+  return citation.title || citation.documentTitle || citation.source || citation.content || '知识库引用'
+}
 
 async function sendMessage() {
   const text = userInput.value.trim()
@@ -18,15 +24,17 @@ async function sendMessage() {
   await scrollToBottom()
 
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: text })
+    const res = await request.post('/chat', {
+      query: text,
+      sessionId: sessionId.value || undefined
     })
-    const data = await res.json()
+    if (!res || res.code !== 1) throw new Error(res?.message || '问答服务返回异常')
+    const data = res.data || {}
+    sessionId.value = data.sessionNo || sessionId.value
     messages.value.push({
       role: 'assistant',
-      text: data.answer || '(暂无回复)'
+      text: data.answer || '(暂无回复)',
+      citations: data.citations || []
     })
   } catch (err) {
     messages.value.push({
@@ -64,7 +72,20 @@ function handleKeydown(e) {
         :class="msg.role === 'user' ? 'msg-user' : 'msg-assistant'"
       >
         <div class="msg-avatar">{{ msg.role === 'user' ? '🙋' : '🤖' }}</div>
-        <div class="msg-bubble">{{ msg.text }}</div>
+        <div class="msg-bubble">
+          <div>{{ msg.text }}</div>
+          <div v-if="msg.citations?.length" class="citations">
+            <span class="citation-label">参考来源</span>
+            <el-tag
+              v-for="(citation, index) in msg.citations"
+              :key="index"
+              size="small"
+              effect="plain"
+            >
+              {{ citationText(citation) }}
+            </el-tag>
+          </div>
+        </div>
       </div>
       <div v-if="loading" class="chat-message msg-assistant">
         <div class="msg-avatar">🤖</div>
@@ -150,6 +171,21 @@ function handleKeydown(e) {
   display: flex;
   gap: 4px;
   align-items: center;
+}
+
+.citations {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.citation-label {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .msg-loading span {
