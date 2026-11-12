@@ -75,8 +75,8 @@ export const menuTree = [
     title: '文件中心',
     icon: UploadFilled,
     children: [
-      item('/files/upload', 'file-upload', FileUploadView, '文件上传', '', UploadFilled),
-      item('/files/download', 'file-download', FileDownloadView, '文件下载', '', Download)
+      item('/files/upload', 'file-upload', FileUploadView, '文件上传', 'file:storage:upload', UploadFilled),
+      item('/files/download', 'file-download', FileDownloadView, '文件下载', 'file:storage:download', Download)
     ]
   },
   item('/lostfound', 'lostfound', LostFoundView, '失物招领', 'lost:item:list', Search),
