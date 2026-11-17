@@ -1,13 +1,16 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { useAuthStore } from '../stores/auth'
 import {
+  createQrLoginApi,
   getCaptchaApi,
+  getQrStatusApi,
   registerApi,
   resetPasswordApi,
+  sendRegisterCodeApi,
   sendResetCodeApi
 } from '../api/auth'
 
@@ -29,13 +32,16 @@ const registerForm = reactive({
   userNo: '',
   grade: '',
   email: '',
+  emailCode: '',
   phone: '',
   password: '',
   confirmPassword: ''
 })
 const resetForm = reactive({
+  channel: 'email',
   username: '',
   email: '',
+  phone: '',
   code: '',
   newPassword: '',
   confirmPassword: ''
@@ -46,10 +52,74 @@ const captchaCode = ref('')
 const captchaLoading = ref(false)
 const loginLoading = ref(false)
 const registerLoading = ref(false)
+const registerCodeLoading = ref(false)
 const codeLoading = ref(false)
 const resetLoading = ref(false)
 const resetStep = ref(1)
 const devCode = ref('')
+
+// 登录方式：password（账号密码）| qr（扫码登录）
+const loginMode = ref('password')
+const qr = reactive({ ticketId: '', image: '', text: '' })
+const qrLoading = ref(false)
+let qrTimer = null
+
+async function refreshQr() {
+  stopQrPolling()
+  qrLoading.value = true
+  try {
+    const data = await createQrLoginApi()
+    qr.ticketId = data.ticketId || ''
+    qr.image = data.imageBase64 || ''
+    qr.text = '等待扫码…'
+    qrTimer = window.setInterval(pollQr, 2000)
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+function stopQrPolling() {
+  if (qrTimer) {
+    window.clearInterval(qrTimer)
+    qrTimer = null
+  }
+}
+
+async function pollQr() {
+  if (!qr.ticketId) return
+  try {
+    const data = await getQrStatusApi(qr.ticketId)
+    if (data.status === 'CONFIRMED' && data.login && data.login.accessToken) {
+      stopQrPolling()
+      qr.text = '已确认，正在进入…'
+      await auth.loginWithToken(data.login.accessToken)
+      ElMessage.success(`欢迎，${auth.name}`)
+      router.push(route.query.redirect || '/profile')
+      return
+    }
+    if (data.status === 'SCANNED') {
+      qr.text = '已扫码，请在手机上确认登录'
+    } else if (data.status === 'EXPIRED') {
+      qr.text = '二维码已过期，请刷新'
+      stopQrPolling()
+    } else {
+      qr.text = '等待扫码…'
+    }
+  } catch {
+    // 轮询期间的网络抖动忽略，下一轮继续
+  }
+}
+
+function switchLoginMode(mode) {
+  if (loginMode.value === mode) return
+  loginMode.value = mode
+  if (mode === 'qr') {
+    refreshQr()
+  } else {
+    stopQrPolling()
+    refreshCaptcha()
+  }
+}
 
 const passwordHint = computed(() => '8-32 位，需同时包含大写字母、小写字母和数字')
 
@@ -81,6 +151,7 @@ function switchTab(key) {
   activeTab.value = key
   resetStep.value = 1
   devCode.value = ''
+  stopQrPolling()
   refreshCaptcha()
 }
 
@@ -134,18 +205,20 @@ async function handleRegister() {
     ElMessage.warning(passwordHint.value)
     return
   }
+  if (!form.emailCode || !form.emailCode.trim()) {
+    ElMessage.warning('请输入邮箱验证码')
+    return
+  }
   if (form.password !== form.confirmPassword) {
     ElMessage.warning('两次输入的密码不一致')
     return
   }
-  if (!validateCaptcha()) return
 
   registerLoading.value = true
   try {
     await registerApi({
       ...form,
-      captchaId: captcha.id,
-      captchaCode: captchaCode.value.trim()
+      emailCode: form.emailCode.trim()
     })
     ElMessage.success('注册成功，请使用新账号登录')
     loginForm.username = form.username
@@ -159,9 +232,40 @@ async function handleRegister() {
   }
 }
 
+async function handleSendRegisterCode() {
+  const form = registerForm
+  if (!form.username || !form.email) {
+    ElMessage.warning('请先填写用户名和邮箱')
+    return
+  }
+  if (!validateCaptcha()) return
+
+  registerCodeLoading.value = true
+  try {
+    const data = await sendRegisterCodeApi({
+      username: form.username.trim(),
+      email: form.email.trim(),
+      captchaId: captcha.id,
+      captchaCode: captchaCode.value.trim()
+    })
+    if (data.devCode) {
+      form.emailCode = data.devCode
+      ElMessage.success(`演示环境验证码：${data.devCode}（已自动填入）`)
+    } else {
+      ElMessage.success(data.message || '验证码已发送，请查收邮箱')
+    }
+    refreshCaptcha()
+  } catch {
+    refreshCaptcha()
+  } finally {
+    registerCodeLoading.value = false
+  }
+}
+
 async function handleSendCode() {
-  if (!resetForm.username || !resetForm.email) {
-    ElMessage.warning('请输入用户名和注册邮箱')
+  const isSms = resetForm.channel === 'sms'
+  if (!resetForm.username || (isSms ? !resetForm.phone : !resetForm.email)) {
+    ElMessage.warning(isSms ? '请输入用户名和注册手机号' : '请输入用户名和注册邮箱')
     return
   }
   if (!validateCaptcha()) return
@@ -170,7 +274,9 @@ async function handleSendCode() {
   try {
     const data = await sendResetCodeApi({
       username: resetForm.username,
+      channel: resetForm.channel,
       email: resetForm.email,
+      phone: resetForm.phone,
       captchaId: captcha.id,
       captchaCode: captchaCode.value.trim()
     })
@@ -191,7 +297,7 @@ async function handleSendCode() {
 async function handleReset() {
   const form = resetForm
   if (!form.code) {
-    ElMessage.warning('请输入邮箱验证码')
+    ElMessage.warning(form.channel === 'sms' ? '请输入短信验证码' : '请输入邮箱验证码')
     return
   }
   if (!passwordStrong(form.newPassword)) {
@@ -207,7 +313,9 @@ async function handleReset() {
   try {
     await resetPasswordApi({
       username: form.username,
+      channel: form.channel,
       email: form.email,
+      phone: form.phone,
       code: form.code,
       newPassword: form.newPassword,
       confirmPassword: form.confirmPassword
@@ -234,6 +342,8 @@ function backToSend() {
 }
 
 onMounted(refreshCaptcha)
+
+onBeforeUnmount(stopQrPolling)
 </script>
 
 <template>
@@ -244,11 +354,6 @@ onMounted(refreshCaptcha)
         <h1>校园通</h1>
         <p class="brand-sub">StudyPal · 统一身份门户</p>
 
-        <ul class="brand-list">
-          <li><span>01</span>RBAC 角色与权限精细管控</li>
-          <li><span>02</span>图形验证码拦截脚本与爬虫</li>
-          <li><span>03</span>邮箱验证码安全找回密码</li>
-        </ul>
 
         <div class="brand-foot">JWT 无状态认证 · 登录即签发访问凭证</div>
       </aside>
@@ -275,9 +380,27 @@ onMounted(refreshCaptcha)
           </button>
         </nav>
 
+        <!-- 登录方式切换 -->
+        <div v-if="activeTab === 'login'" class="mode-switch">
+          <button
+            type="button"
+            :class="['mode-item', { active: loginMode === 'password' }]"
+            @click="switchLoginMode('password')"
+          >
+            账号密码
+          </button>
+          <button
+            type="button"
+            :class="['mode-item', { active: loginMode === 'qr' }]"
+            @click="switchLoginMode('qr')"
+          >
+            扫码登录
+          </button>
+        </div>
+
         <!-- 登录 -->
         <el-form
-          v-if="activeTab === 'login'"
+          v-if="activeTab === 'login' && loginMode === 'password'"
           label-position="top"
           class="auth-form"
           @submit.prevent
@@ -349,6 +472,20 @@ onMounted(refreshCaptcha)
           </div>
         </el-form>
 
+        <!-- 扫码登录 -->
+        <div v-else-if="activeTab === 'login' && loginMode === 'qr'" class="qr-panel">
+          <div v-loading="qrLoading" class="qr-box" @click="refreshQr">
+            <img v-if="qr.image" :src="qr.image" alt="登录二维码" />
+            <span v-else class="qr-placeholder">点击生成二维码</span>
+          </div>
+          <p class="qr-status">{{ qr.text }}</p>
+          <p class="qr-tip">
+            用手机浏览器扫描二维码（或直接打开里面的地址），
+            在确认页输入账号密码，电脑端会自动登录。
+          </p>
+          <el-button link type="primary" @click="refreshQr">刷新二维码</el-button>
+        </div>
+
         <!-- 注册 -->
         <el-form
           v-else-if="activeTab === 'register'"
@@ -387,8 +524,28 @@ onMounted(refreshCaptcha)
             <el-input
               v-model="registerForm.email"
               size="large"
-              placeholder="用于接收找回密码验证码"
+              placeholder="用于接收注册验证码与找回密码"
             />
+          </el-form-item>
+
+          <el-form-item label="邮箱验证码">
+            <div class="captcha-row">
+              <el-input
+                v-model="registerForm.emailCode"
+                size="large"
+                maxlength="6"
+                placeholder="6 位数字验证码"
+                @keyup.enter="handleRegister"
+              />
+              <el-button
+                type="primary"
+                class="code-btn"
+                :loading="registerCodeLoading"
+                @click="handleSendRegisterCode"
+              >
+                获取验证码
+              </el-button>
+            </div>
           </el-form-item>
 
           <el-form-item label="手机号（选填）">
@@ -429,8 +586,8 @@ onMounted(refreshCaptcha)
                 v-model="captchaCode"
                 size="large"
                 maxlength="4"
-                placeholder="4 位验证码"
-                @keyup.enter="handleRegister"
+                placeholder="发码前填写图形码"
+                @keyup.enter="handleSendRegisterCode"
               />
               <button
                 type="button"
@@ -467,11 +624,27 @@ onMounted(refreshCaptcha)
               />
             </el-form-item>
 
-            <el-form-item label="注册邮箱">
+            <el-form-item label="验证方式">
+              <el-radio-group v-model="resetForm.channel" @change="refreshCaptcha">
+                <el-radio-button label="email">邮箱验证码</el-radio-button>
+                <el-radio-button label="sms">短信验证码</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item v-if="resetForm.channel === 'email'" label="注册邮箱">
               <el-input
                 v-model="resetForm.email"
                 size="large"
                 placeholder="请输入注册时填写的邮箱"
+              />
+            </el-form-item>
+
+            <el-form-item v-else label="注册手机号">
+              <el-input
+                v-model="resetForm.phone"
+                size="large"
+                maxlength="11"
+                placeholder="请输入注册时填写的手机号"
               />
             </el-form-item>
 
@@ -504,7 +677,7 @@ onMounted(refreshCaptcha)
               :loading="codeLoading"
               @click="handleSendCode"
             >
-              发送邮箱验证码
+              {{ resetForm.channel === 'sms' ? '发送短信验证码' : '发送邮箱验证码' }}
             </el-button>
           </el-form>
 
@@ -518,7 +691,7 @@ onMounted(refreshCaptcha)
               :title="`演示环境验证码：${devCode}（已自动填入）`"
             />
 
-            <el-form-item label="邮箱验证码">
+            <el-form-item :label="resetForm.channel === 'sms' ? '短信验证码' : '邮箱验证码'">
               <el-input
                 v-model="resetForm.code"
                 size="large"
@@ -762,6 +935,12 @@ onMounted(refreshCaptcha)
   margin-top: 4px;
 }
 
+.code-btn {
+  width: 124px;
+  height: 40px;
+  flex: none;
+}
+
 .field-hint {
   margin: -8px 0 12px;
   font-size: 12px;
@@ -802,5 +981,77 @@ onMounted(refreshCaptcha)
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 登录方式切换 */
+.mode-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  background: #f1f5fb;
+  border-radius: 10px;
+}
+
+.mode-item {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #5b6b84;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.mode-item.active {
+  color: #1f4db8;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(31, 77, 184, 0.16);
+}
+
+/* 扫码登录 */
+.qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+.qr-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 214px;
+  height: 214px;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e3e9f4;
+  border-radius: 14px;
+}
+
+.qr-box img {
+  width: 196px;
+  height: 196px;
+}
+
+.qr-placeholder {
+  font-size: 13px;
+  color: #9aa8bd;
+}
+
+.qr-status {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f4f7a;
+}
+
+.qr-tip {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8797ae;
+  text-align: center;
 }
 </style>

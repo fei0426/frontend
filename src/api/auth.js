@@ -46,13 +46,36 @@ export async function registerApi(payload) {
   await request.post('/v1/auth/register', payload)
 }
 
-/** 忘记密码：发送邮箱验证码 */
+/** 注册前发送邮箱验证码（需先通过图形验证码） */
+export async function sendRegisterCodeApi(payload) {
+  const response = await request.post('/v1/auth/register-code', payload)
+  return response.data || {}
+}
+
+/** 忘记密码：发送验证码（channel=email 走邮箱，channel=sms 走短信） */
 export async function sendResetCodeApi(payload) {
   const response = await request.post('/v1/auth/password/reset-code', payload)
   return response.data || {}
 }
 
-/** 忘记密码：校验邮箱验证码并重置密码 */
+/** 忘记密码：校验验证码并重置密码（channel 需与发送时一致） */
 export async function resetPasswordApi(payload) {
   await request.post('/v1/auth/password/reset', payload)
+}
+
+/** 扫码登录：生成二维码，返回 { ticketId, imageBase64, expiresIn } */
+export async function createQrLoginApi() {
+  const response = await request.post('/v1/auth/qr/create')
+  return response.data || {}
+}
+
+/** 扫码登录：轮询状态，返回 { status, login } */
+export async function getQrStatusApi(ticketId) {
+  const response = await request.get(`/v1/auth/qr/status/${ticketId}`)
+  return response.data || {}
+}
+
+/** 扫码登录：手机端确认登录 */
+export async function confirmQrLoginApi(payload) {
+  await request.post('/v1/auth/qr/confirm', payload)
 }

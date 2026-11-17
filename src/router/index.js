@@ -9,6 +9,13 @@ import { useAuthStore } from '../stores/auth'
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
+  // 扫码登录的手机端确认页：不需要登录态，凭二维码票据确认身份
+  {
+    path: '/qr-confirm',
+    name: 'qr-confirm',
+    component: () => import('../views/QrConfirmView.vue'),
+    meta: { title: '扫码登录确认' }
+  },
   {
     path: '/',
     component: BasicLayout,
@@ -44,6 +51,11 @@ router.beforeEach(async (to) => {
 
   if (to.path === '/login') {
     return auth.isLoggedIn ? '/profile' : true
+  }
+
+  // 手机端扫码确认页无需登录
+  if (to.path === '/qr-confirm') {
+    return true
   }
 
   if (!auth.isLoggedIn) {

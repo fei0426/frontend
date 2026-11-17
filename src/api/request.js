@@ -43,7 +43,11 @@ request.interceptors.response.use(
       // 最关键的一条：前端把按钮藏了，用户绕过界面直接调接口时，后端应该返回 403
       ElMessage.error('没有操作权限（后端已拦截）')
     } else {
-      ElMessage.error(error.response?.data?.message || error.message || '请求失败')
+      // 后端把字段级校验信息放在 data.fieldErrors 里，优先展示，避免只看到笼统的“参数校验失败”
+      const fieldErrors = error.response?.data?.data?.fieldErrors
+      ElMessage.error(
+        fieldErrors?.[0]?.message || error.response?.data?.message || error.message || '请求失败'
+      )
     }
 
     return Promise.reject(error)
