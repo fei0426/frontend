@@ -64,13 +64,18 @@ async function submit() {
 
   loading.value = true
   try {
-    await confirmQrLoginApi({
+    const data = await confirmQrLoginApi({
       ticketId,
       username: form.username,
       password: form.password,
       captchaId: captcha.id,
       captchaCode: captchaCode.value.trim()
     })
+    // 手机端也保存登录态，下次扫码即可一键确认
+    if (data && data.token) {
+      auth.token = data.token
+      localStorage.setItem('rbac_token', data.token)
+    }
     done.value = true
     ElMessage.success('已确认，电脑端即将自动登录')
   } catch {
