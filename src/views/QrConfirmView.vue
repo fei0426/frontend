@@ -3,10 +3,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { confirmQrLoginApi, getCaptchaApi } from '../api/auth'
+import { confirmQrLoginApi, confirmQrLoginByTokenApi, getCaptchaApi } from '../api/auth'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const ticketId = String(route.query.ticket || '')
 const form = reactive({ username: '', password: '' })
@@ -15,6 +17,24 @@ const captchaCode = ref('')
 const captchaLoading = ref(false)
 const loading = ref(false)
 const done = ref(false)
+const oneTapLoading = ref(false)
+// 手机浏览器里已经登录过，就可以直接确认，不用再输账号密码
+const hasSession = ref(!!auth.token)
+
+async function confirmBySession() {
+  if (!ticketId) {
+    ElMessage.error('二维码链接无效，请在电脑上刷新二维码')
+    return
+  }
+  oneTapLoading.value = true
+  try {
+    await confirmQrLoginByTokenApi(ticketId)
+    done.value = true
+    ElMessage.success('已确认，电脑端即将自动登录')
+  } finally {
+    oneTapLoading.value = false
+  }
+}
 
 async function refreshCaptcha() {
   captchaLoading.value = true
@@ -70,6 +90,20 @@ onMounted(refreshCaptcha)
       <p class="subtitle">确认后，正在等待的电脑会自动登录你的账号</p>
 
       <template v-if="!done">
+        <div v-if="hasSession" class="one-tap">
+          <el-button
+            type="primary"
+            size="large"
+            class="submit-btn"
+            :loading="oneTapLoading"
+            @click="confirmBySession"
+          >
+            使用当前登录账号确认登录
+          </el-button>
+          <p class="one-tap-tip">本机已登录，确认后电脑端直接进入同一账号</p>
+          <p class="divider">或重新输入账号密码</p>
+        </div>
+
         <el-form label-position="top" @submit.prevent>
           <el-form-item label="用户名">
             <el-input v-model="form.username" size="large" placeholder="请输入用户名" />
@@ -182,5 +216,23 @@ h1 {
 .submit-btn {
   width: 100%;
   margin-top: 8px;
+}
+
+.one-tap {
+  margin-bottom: 8px;
+}
+
+.one-tap-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #8797ae;
+  text-align: center;
+}
+
+.divider {
+  margin: 18px 0 6px;
+  font-size: 12px;
+  color: #a8b4c6;
+  text-align: center;
 }
 </style>

@@ -79,3 +79,8 @@ export async function getQrStatusApi(ticketId) {
 export async function confirmQrLoginApi(payload) {
   await request.post('/v1/auth/qr/confirm', payload)
 }
+
+/** 扫码登录：手机端已登录时一键确认（自动携带本机令牌） */
+export async function confirmQrLoginByTokenApi(ticketId) {
+  await request.post('/v1/auth/qr/confirm-token', { ticketId })
+}

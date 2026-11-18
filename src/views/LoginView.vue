@@ -56,8 +56,6 @@ const registerCodeLoading = ref(false)
 const codeLoading = ref(false)
 const resetLoading = ref(false)
 const resetStep = ref(1)
-const devCode = ref('')
-
 // 登录方式：password（账号密码）| qr（扫码登录）
 const loginMode = ref('password')
 const qr = reactive({ ticketId: '', image: '', text: '' })
@@ -150,7 +148,6 @@ function switchTab(key) {
   if (activeTab.value === key) return
   activeTab.value = key
   resetStep.value = 1
-  devCode.value = ''
   stopQrPolling()
   refreshCaptcha()
 }
@@ -197,8 +194,12 @@ async function handleLogin() {
 
 async function handleRegister() {
   const form = registerForm
-  if (!form.username || !form.realName || !form.email || !form.password) {
-    ElMessage.warning('请填写用户名、姓名、邮箱和密码')
+  if (!form.username || !form.realName || !form.email || !form.phone || !form.password) {
+    ElMessage.warning('请填写用户名、姓名、邮箱、手机号和密码')
+    return
+  }
+  if (!/^1\d{10}$/.test(form.phone)) {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   if (!passwordStrong(form.password)) {
@@ -248,12 +249,7 @@ async function handleSendRegisterCode() {
       captchaId: captcha.id,
       captchaCode: captchaCode.value.trim()
     })
-    if (data.devCode) {
-      form.emailCode = data.devCode
-      ElMessage.success(`演示环境验证码：${data.devCode}（已自动填入）`)
-    } else {
-      ElMessage.success(data.message || '验证码已发送，请查收邮箱')
-    }
+    ElMessage.success(data.message || '验证码已发送，请查收邮箱')
     refreshCaptcha()
   } catch {
     refreshCaptcha()
@@ -263,9 +259,12 @@ async function handleSendRegisterCode() {
 }
 
 async function handleSendCode() {
-  const isSms = resetForm.channel === 'sms'
-  if (!resetForm.username || (isSms ? !resetForm.phone : !resetForm.email)) {
-    ElMessage.warning(isSms ? '请输入用户名和注册手机号' : '请输入用户名和注册邮箱')
+  if (!resetForm.username || !resetForm.email || !resetForm.phone) {
+    ElMessage.warning('请填写用户名、注册邮箱和注册手机号')
+    return
+  }
+  if (!/^1\d{10}$/.test(resetForm.phone)) {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   if (!validateCaptcha()) return
@@ -280,10 +279,6 @@ async function handleSendCode() {
       captchaId: captcha.id,
       captchaCode: captchaCode.value.trim()
     })
-    devCode.value = data.devCode || ''
-    if (devCode.value) {
-      resetForm.code = devCode.value
-    }
     resetStep.value = 2
     ElMessage.success(data.message || '验证码已发送')
     refreshCaptcha()
@@ -328,8 +323,7 @@ async function handleReset() {
     resetForm.code = ''
     resetForm.newPassword = ''
     resetForm.confirmPassword = ''
-    devCode.value = ''
-    refreshCaptcha()
+      refreshCaptcha()
   } finally {
     resetLoading.value = false
   }
@@ -337,7 +331,6 @@ async function handleReset() {
 
 function backToSend() {
   resetStep.value = 1
-  devCode.value = ''
   refreshCaptcha()
 }
 
@@ -365,7 +358,7 @@ onBeforeUnmount(stopQrPolling)
           <h2 v-else>重置登录密码</h2>
           <p v-if="activeTab === 'login'">登录后按角色展示可用功能</p>
           <p v-else-if="activeTab === 'register'">注册账号默认授予学生角色</p>
-          <p v-else>通过注册邮箱验证身份</p>
+          <p v-else>通过注册邮箱和手机号验证身份</p>
         </header>
 
         <nav class="tab-bar">
@@ -548,7 +541,7 @@ onBeforeUnmount(stopQrPolling)
             </div>
           </el-form-item>
 
-          <el-form-item label="手机号（选填）">
+          <el-form-item label="手机号">
             <el-input
               v-model="registerForm.phone"
               size="large"
@@ -631,7 +624,7 @@ onBeforeUnmount(stopQrPolling)
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item v-if="resetForm.channel === 'email'" label="注册邮箱">
+            <el-form-item label="注册邮箱">
               <el-input
                 v-model="resetForm.email"
                 size="large"
@@ -639,7 +632,7 @@ onBeforeUnmount(stopQrPolling)
               />
             </el-form-item>
 
-            <el-form-item v-else label="注册手机号">
+            <el-form-item label="注册手机号">
               <el-input
                 v-model="resetForm.phone"
                 size="large"
@@ -682,14 +675,6 @@ onBeforeUnmount(stopQrPolling)
           </el-form>
 
           <el-form v-else label-position="top" @submit.prevent>
-            <el-alert
-              v-if="devCode"
-              type="success"
-              :closable="false"
-              show-icon
-              class="dev-code-tip"
-              :title="`演示环境验证码：${devCode}（已自动填入）`"
-            />
 
             <el-form-item :label="resetForm.channel === 'sms' ? '短信验证码' : '邮箱验证码'">
               <el-input
@@ -954,10 +939,6 @@ onBeforeUnmount(stopQrPolling)
   margin-top: 14px;
   font-size: 13px;
   color: #94a3b8;
-}
-
-.dev-code-tip {
-  margin-bottom: 16px;
 }
 
 @media (max-width: 860px) {
