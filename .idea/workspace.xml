@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="df52cb09-c192-4ee4-b207-4c7b4d578493" name="更改" comment="sso" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_COMMON_BRANCH" value="feature/rbacsso" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="ROOT_SYNC" value="SYNC" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "history": [
+    {
+      "state": "OPEN"
+    }
+  ],
+  "lastFilter": {}
+}]]></component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/fei0426/frontend.git&quot;,
+    &quot;accountId&quot;: &quot;f18e4cc3-d2f9-41c3-a35e-6a266796a8c8&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="3LfNaHoIWg8JM6xVC7VyvevFylv" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/实验报告/软工/frontend",
+    "settings.editor.selected.configurable": "vcs.Git"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.28238.7" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="df52cb09-c192-4ee4-b207-4c7b4d578493" name="更改" comment="" />
+      <created>1793841224147</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1793841224147</updated>
+    </task>
+    <task id="LOCAL-00001" summary="RBAC角色收取">
+      <option name="closed" value="true" />
+      <created>1793847006791</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1793847006791</updated>
+    </task>
+    <task id="LOCAL-00002" summary="3. 登录之后要发凭证，怎么传这个凭证？怎么用？后台和前端都要实现&#10;4. 登录以后实现鉴权功能，要用鉴权框架&#10;5. 统一身份认证，这个信任关系怎么实现的">
+      <option name="closed" value="true" />
+      <created>1794447419826</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1794447419826</updated>
+    </task>
+    <task id="LOCAL-00003" summary="3. 登录之后要发凭证，怎么传这个凭证？怎么用？后台和前端都要实现&#10;4. 登录以后实现鉴权功能，要用鉴权框架&#10;5. 统一身份认证，这个信任关系怎么实现的">
+      <option name="closed" value="true" />
+      <created>1794447455801</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1794447455801</updated>
+    </task>
+    <task id="LOCAL-00004" summary="sso">
+      <option name="closed" value="true" />
+      <created>1795052347253</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1795052347253</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="RBAC角色收取" />
+    <MESSAGE value="3. 登录之后要发凭证，怎么传这个凭证？怎么用？后台和前端都要实现&#10;4. 登录以后实现鉴权功能，要用鉴权框架&#10;5. 统一身份认证，这个信任关系怎么实现的" />
+    <MESSAGE value="sso" />
+    <option name="LAST_COMMIT_MESSAGE" value="sso" />
+  </component>
+</project>
