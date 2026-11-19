@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 import BasicLayout from '../layout/BasicLayout.vue'
 import LoginView from '../views/LoginView.vue'
+import SsoCallbackView from '../views/SsoCallbackView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import { menuRoutes, extraRoutes } from './menu'
 
@@ -9,6 +10,7 @@ import { useAuthStore } from '../stores/auth'
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
+  { path: '/sso-callback', name: 'sso-callback', component: SsoCallbackView, meta: { requiresAuth: false } },
   {
     path: '/',
     component: BasicLayout,
@@ -44,6 +46,10 @@ router.beforeEach(async (to) => {
 
   if (to.path === '/login') {
     return auth.isLoggedIn ? '/profile' : true
+  }
+
+  if (to.path === '/sso-callback') {
+    return true
   }
 
   if (!auth.isLoggedIn) {

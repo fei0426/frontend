@@ -32,6 +32,12 @@ export const useAuthStore = defineStore('rbac-auth', {
       await this.fetchUserInfo()
     },
 
+    async ssoLogin({ token }) {
+      this.token = token
+      localStorage.setItem('rbac_token', token)
+      await this.fetchUserInfo()
+    },
+
     async fetchUserInfo() {
       const data = await getUserInfoApi()
       this.username = data.username

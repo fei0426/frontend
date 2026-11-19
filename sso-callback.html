@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSO 登录中... - 校园通</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .container {
+        background: white;
+        border-radius: 16px;
+        padding: 48px 40px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        max-width: 420px;
+        width: 90%;
+      }
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e5e7eb;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 24px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      h2 {
+        color: #1f2937;
+        font-size: 20px;
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      p {
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .error .spinner { display: none; }
+      .error-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .error h2 { color: #ef4444; }
+      .back-btn {
+        margin-top: 24px;
+        padding: 10px 24px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .back-btn:hover { background: #5a67d8; }
+      .detail-box {
+        margin-top: 16px;
+        padding: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        text-align: left;
+        font-size: 12px;
+        color: #991b1b;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="container">
+      <div class="spinner"></div>
+      <h2 id="title">正在完成统一身份认证登录...</h2>
+      <p id="message">请稍候，正在验证身份凭证</p>
+    </div>
+
+    <script>
+      const API_BASE = '/api/v1';
+
+      // 从 URL 获取参数
+      function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+
+      // 显示错误
+      function showError(title, message, detail) {
+        const container = document.getElementById('container');
+        container.classList.add('error');
+        document.getElementById('title').textContent = title;
+        document.getElementById('message').textContent = message;
+        if (detail) {
+          const detailBox = document.createElement('div');
+          detailBox.className = 'detail-box';
+          detailBox.textContent = detail;
+          container.appendChild(detailBox);
+        }
+        // 添加返回按钮
+        const btn = document.createElement('button');
+        btn.className = 'back-btn';
+        btn.textContent = '返回登录';
+        btn.onclick = () => { window.location.href = '/#/login'; };
+        container.appendChild(btn);
+      }
+
+      // 主流程
+      async function main() {
+        const code = getQueryParam('code');
+        const state = getQueryParam('state');
+        const error = getQueryParam('error');
+        const errorDesc = getQueryParam('error_description');
+
+        // OIDC 错误回调
+        if (error) {
+          showError('登录失败', errorDesc || error);
+          return;
+        }
+
+        if (!code) {
+          showError('登录失败', '缺少授权码，请重新发起登录');
+          return;
+        }
+
+        try {
+          // 调用后端兑换 token —— 字段名必须是 ticket（与后端 SsoExchangeRequest 一致）
+          const response = await fetch(`${API_BASE}/auth/sso/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticket: code,
+              state: state,
+              redirectUri: window.location.origin + window.location.pathname
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.code === 1 && data.data?.accessToken) {
+            // 保存 token —— key 必须是 rbac_token（与 Vue auth store 一致）
+            localStorage.setItem('rbac_token', data.data.accessToken);
+            if (data.data.refreshToken) {
+              localStorage.setItem('rbac_refresh_token', data.data.refreshToken);
+            }
+
+            // 获取用户信息
+            try {
+              const userResp = await fetch(`${API_BASE}/users/me`, {
+                headers: { 'Authorization': `Bearer ${data.data.accessToken}` }
+              });
+              const userData = await userResp.json();
+              if (userData.code === 0 && userData.data) {
+                localStorage.setItem('userInfo', JSON.stringify(userData.data));
+              }
+            } catch (e) {
+              // 用户信息获取失败不影响主流程
+              console.warn('获取用户信息失败:', e);
+            }
+
+            // 跳转到首页（profile 是默认页，确保存在）
+            document.getElementById('title').textContent = '登录成功';
+            document.getElementById('message').textContent = '正在跳转...';
+            const redirect = localStorage.getItem('sso_redirect') || '/profile';
+            localStorage.removeItem('sso_redirect');
+            setTimeout(() => {
+              window.location.href = '/#' + redirect;
+            }, 500);
+          } else {
+            showError('登录失败', data.message || '令牌兑换失败',
+              data.code ? '错误码: ' + data.code : null);
+          }
+        } catch (err) {
+          console.error('SSO 回调错误:', err);
+          showError('登录失败', '网络错误，请稍后重试', err.message);
+        }
+      }
+
+      main();
+    </script>
+  </body>
+</html>

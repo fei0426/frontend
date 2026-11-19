@@ -56,3 +56,38 @@ export async function sendResetCodeApi(payload) {
 export async function resetPasswordApi(payload) {
   await request.post('/v1/auth/password/reset', payload)
 }
+
+/** SSO 票据兑换令牌：用授权码(code)换本地 JWT，返回 { token, type, enabled, tip } */
+export async function ssoExchangeApi({ code, redirectUri, state }) {
+  const response = await request.post('/v1/auth/sso/exchange', {
+    ticket: code,
+    redirectUri,
+    state
+  })
+  const data = response.data || {}
+  return {
+    token: data.accessToken,
+    refreshToken: data.refreshToken,
+    type: data.type,
+    enabled: data.enabled,
+    tip: data.tip
+  }
+}
+
+/**
+ * 获取 SSO 登录跳转地址。
+ * 返回 { loginUrl, type, enabled, tip }
+ * enabled=false 时表示未配置 SSO，可隐藏 SSO 登录按钮或显示提示
+ */
+export async function getSsoLoginUrlApi(redirectUri) {
+  const response = await request.get('/v1/auth/sso/login-url', {
+    params: { redirectUri }
+  })
+  const data = response.data || {}
+  return {
+    loginUrl: data.loginUrl,
+    type: data.type,
+    enabled: data.enabled,
+    tip: data.tip
+  }
+}

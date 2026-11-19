@@ -2,10 +2,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { School } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
 import {
   getCaptchaApi,
+  getSsoLoginUrlApi,
   registerApi,
   resetPasswordApi,
   sendResetCodeApi
@@ -45,6 +47,7 @@ const captcha = reactive({ id: '', image: '' })
 const captchaCode = ref('')
 const captchaLoading = ref(false)
 const loginLoading = ref(false)
+const ssoLoading = ref(false)
 const registerLoading = ref(false)
 const codeLoading = ref(false)
 const resetLoading = ref(false)
@@ -121,6 +124,27 @@ async function handleLogin() {
     refreshCaptcha()
   } finally {
     loginLoading.value = false
+  }
+}
+
+async function handleSsoLogin() {
+  ssoLoading.value = true
+  try {
+    const redirectUri = window.location.origin + '/sso-callback.html'
+    const data = await getSsoLoginUrlApi(redirectUri)
+    if (!data.enabled) {
+      ElMessage.warning(data.tip || '统一身份认证暂未配置')
+      return
+    }
+    // 保存登录后跳转地址
+    const redirect = route.query.redirect || '/profile'
+    localStorage.setItem('sso_redirect', redirect)
+    // 跳转到 SSO 认证页（state 由后端生成并管理）
+    window.location.href = data.loginUrl
+  } catch (err) {
+    ElMessage.error('获取 SSO 登录地址失败：' + (err?.response?.data?.message || err.message))
+  } finally {
+    ssoLoading.value = false
   }
 }
 
@@ -333,6 +357,21 @@ onMounted(refreshCaptcha)
             @click="handleLogin"
           >
             登录
+          </el-button>
+
+          <div class="sso-divider">
+            <span>或者</span>
+          </div>
+
+          <el-button
+            type="primary"
+            size="large"
+            class="sso-btn"
+            :loading="ssoLoading"
+            @click="handleSsoLogin"
+          >
+            <el-icon style="margin-right: 6px"><School /></el-icon>
+            统一身份认证登录
           </el-button>
 
           <div class="demo-row">
@@ -760,6 +799,36 @@ onMounted(refreshCaptcha)
 .submit-btn {
   width: 100%;
   margin-top: 4px;
+}
+
+.sso-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0 14px;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.sso-divider::before,
+.sso-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.sso-divider span {
+  padding: 0 12px;
+}
+
+.sso-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
+  border: none;
+}
+
+.sso-btn:hover {
+  background: linear-gradient(135deg, #1e40af 0%, #0284c7 100%);
 }
 
 .field-hint {
