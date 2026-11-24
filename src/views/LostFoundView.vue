@@ -17,8 +17,11 @@ import {
 } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
+import { useLostChatStore } from '../stores/lostChat'
+import LostChatWidget from '../components/LostChatWidget.vue'
 
 const auth = useAuthStore()
+const chat = useLostChatStore()
 
 const activeTab = ref('found')
 const keyword = ref('')
@@ -191,7 +194,7 @@ function handleClaim(item) {
       <el-empty v-if="!list.length" description="暂时没有相关信息" />
 
       <div v-else class="lf-grid">
-        <article v-for="item in list" :key="item.id" class="lf-card">
+        <article v-for="item in list" :key="item.id" class="lf-card lf-card-chat" @click="chat.openItemChat(item)">
           <div class="lf-cover" :class="'tone-' + catMeta(item.category).tone">
             <img v-if="item.image" :src="item.image" :alt="item.title" />
             <el-icon v-else class="lf-cover-icon">
@@ -234,13 +237,13 @@ function handleClaim(item) {
                   link
                   type="primary"
                   size="small"
-                  @click="handleClaim(item)"
+                  @click.stop="handleClaim(item)"
                 >
                   标记已找到
                 </el-button>
-                <span class="lf-comments">
+                <button type="button" class="lf-comments" @click.stop="chat.openItemChat(item)">
                   <el-icon><ChatDotRound /></el-icon>{{ item.comments }}
-                </span>
+                </button>
               </span>
             </div>
           </div>
@@ -291,6 +294,9 @@ function handleClaim(item) {
         <el-button type="primary" @click="submitPublish">发布</el-button>
       </template>
     </el-dialog>
+
+    <!-- 右下角实时聊天：全局聊天室 + 1 对 1 私聊 -->
+    <LostChatWidget />
   </div>
 </template>
 
@@ -547,9 +553,23 @@ function handleClaim(item) {
   gap: 8px;
 }
 
+.lf-card-chat {
+  cursor: pointer;
+}
+
 .lf-comments {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--lf-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lf-comments:hover {
+  color: var(--lf-primary);
 }
 </style>

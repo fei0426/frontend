@@ -11,7 +11,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:10086',
-        changeOrigin: true
+        changeOrigin: true,
+        // 失物招领实时聊天走 WebSocket：/api/ws/lostfound-chat
+        ws: true
       }
     }
   },

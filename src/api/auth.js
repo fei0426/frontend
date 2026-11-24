@@ -26,6 +26,7 @@ export async function getUserInfoApi() {
   const response = await request.get('/v1/users/me')
   const data = response.data || {}
   return {
+    id: data.userId || '',
     username: data.username,
     name: data.name || data.username,
     no: data.userNo || '',
