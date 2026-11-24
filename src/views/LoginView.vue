@@ -169,6 +169,8 @@ function passwordStrong(value) {
 }
 
 async function handleLogin() {
+  // 防止回车键连按或重复点击造成并发重复提交
+  if (loginLoading.value) return
   if (!loginForm.username || !loginForm.password) {
     ElMessage.warning('请输入用户名和密码')
     return
@@ -193,6 +195,8 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  // 防止回车键连按或重复点击造成并发重复提交
+  if (registerLoading.value) return
   const form = registerForm
   if (!form.username || !form.realName || !form.email || !form.phone || !form.password) {
     ElMessage.warning('请填写用户名、姓名、邮箱、手机号和密码')
@@ -234,6 +238,8 @@ async function handleRegister() {
 }
 
 async function handleSendRegisterCode() {
+  // 防止回车键连按或重复点击造成验证码重复发送
+  if (registerCodeLoading.value) return
   const form = registerForm
   if (!form.username || !form.email) {
     ElMessage.warning('请先填写用户名和邮箱')
