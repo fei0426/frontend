@@ -295,3 +295,30 @@ function retry(row) {
   }
 }
 </style>
+
+<style scoped>
+.overview {
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.overview .panel + .panel {
+  margin-top: 0;
+}
+
+.metric {
+  padding: 18px 20px;
+}
+
+.metric .stat-value {
+  margin-top: 6px;
+}
+
+.danger {
+  color: var(--sp-danger);
+}
+
+.panel {
+  padding: 18px 22px 22px;
+}
+</style>

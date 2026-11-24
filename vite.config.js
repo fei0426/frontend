@@ -12,6 +12,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:10086',
         changeOrigin: true
+      },
+      // 后端上传文件返回 /uploads/... 相对路径，开发环境同样代理到后端，
+      // 否则浏览器会向 Vite 的 5173 端口请求并得到 404。
+      '/uploads': {
+        target: 'http://localhost:10086',
+        changeOrigin: true
       }
     }
   },

@@ -241,3 +241,95 @@ onMounted(load)
   }
 }
 </style>
+
+<style scoped>
+.stats-grid {
+  gap: 14px;
+}
+
+.stat-card {
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--sp-surface);
+}
+
+.stat-card + .stat-card {
+  margin-top: 0;
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.blue {
+  background: var(--sp-info-soft);
+  color: var(--sp-info);
+}
+
+.cyan,
+.green {
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+}
+
+.orange {
+  background: var(--sp-amber-soft);
+  color: #956127;
+}
+
+.rose {
+  background: var(--sp-danger-soft);
+  color: var(--sp-danger);
+}
+
+.dashboard-grid {
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.bars {
+  gap: 16px;
+}
+
+.bar-track {
+  background: #edf2ee;
+}
+
+.bar-fill.blue {
+  background: var(--sp-info);
+}
+
+.bar-fill.cyan,
+.bar-fill.green {
+  background: var(--sp-primary);
+}
+
+.bar-fill.orange {
+  background: var(--sp-amber);
+}
+
+.bar-fill.rose {
+  background: var(--sp-danger);
+}
+
+.quick-grid {
+  gap: 9px;
+}
+
+.quick-item {
+  min-height: 56px;
+  padding: 12px 13px;
+  border-color: var(--sp-border);
+  border-radius: 9px;
+  color: var(--sp-text);
+}
+
+.quick-item:hover {
+  border-color: var(--sp-primary);
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+}
+</style>

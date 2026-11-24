@@ -426,3 +426,43 @@ async function remove(row) {
   }
 }
 </style>
+
+<style scoped>
+.knowledge-stats {
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-block {
+  padding: 17px 18px;
+  border-color: var(--sp-border);
+  border-radius: var(--sp-radius-panel);
+  background: var(--sp-surface);
+}
+
+.stat-block b {
+  font-size: 25px;
+  font-weight: 680;
+}
+
+.stat-block .green {
+  color: var(--sp-primary);
+}
+
+.stat-block .orange {
+  color: var(--sp-amber);
+}
+
+.stat-block .gray {
+  color: var(--sp-muted);
+}
+
+.panel {
+  padding: 18px 22px 22px;
+}
+
+.detail-title {
+  color: var(--sp-ink);
+  font-weight: 650;
+}
+</style>

@@ -167,3 +167,25 @@ function actionLabel(action) {
   margin-top: 20px;
 }
 </style>
+
+<style scoped>
+.panel {
+  padding: 18px 22px 22px;
+}
+
+.opinion-title {
+  color: var(--sp-ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.decision {
+  padding-top: 4px;
+}
+
+:deep(.el-descriptions__label) {
+  width: 116px;
+  color: var(--sp-muted);
+  font-weight: 600;
+}
+</style>

@@ -1,13 +1,29 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import {
+  ArrowRight,
+  Calendar,
+  Document,
+  Grid,
+  Reading,
+  Search,
+  Tickets,
+  Tools
+} from '@element-plus/icons-vue'
 
 import { serviceCategories, serviceItems } from '../mock/services'
 
 const router = useRouter()
 const keyword = ref('')
 const category = ref('all')
+
+const categoryIcons = {
+  life: Tools,
+  academic: Reading,
+  place: Calendar,
+  other: Document
+}
 
 const list = computed(() => {
   const kw = keyword.value.trim()
@@ -28,122 +44,255 @@ function goApply(item) {
 </script>
 
 <template>
-  <div>
-    <div class="page-head">
+  <div class="services-page">
+    <header class="page-head">
       <div>
-        <h2 class="page-title">服务事项</h2>
-        <p class="page-desc">选择要办理的事项，填写表单后提交，可在「我的申请」查看进度。</p>
+        <h1 class="page-title">服务事项</h1>
+        <p class="page-desc">
+          按办理场景浏览校园服务。选择事项后填写材料，并在“我的申请”中跟踪处理进度。
+        </p>
       </div>
-    </div>
+      <el-button :icon="Tickets" @click="router.push('/my-requests')">
+        我的申请
+      </el-button>
+    </header>
 
-    <div class="panel">
-      <div class="toolbar">
+    <section class="service-toolbar panel">
+      <div class="service-toolbar-head">
+        <div>
+          <h2>找到要办的事</h2>
+          <p>共 {{ serviceItems.length }} 项服务，当前显示 {{ list.length }} 项</p>
+        </div>
         <el-input
           v-model="keyword"
           :prefix-icon="Search"
           placeholder="搜索事项名称、办理部门"
           clearable
-          style="width: 280px"
+          class="service-search"
         />
-        <el-radio-group v-model="category">
-          <el-radio-button
-            v-for="item in serviceCategories"
-            :key="item.key"
-            :value="item.key"
-          >
-            {{ item.label }}
-          </el-radio-button>
-        </el-radio-group>
       </div>
 
-      <el-empty v-if="!list.length" description="没有找到匹配的事项" />
+      <div class="filter-row" role="group" aria-label="服务分类">
+        <button
+          v-for="item in serviceCategories"
+          :key="item.key"
+          type="button"
+          class="filter-pill"
+          :class="{ active: category === item.key }"
+          @click="category = item.key"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+    </section>
 
-      <div v-else class="cards">
-        <div v-for="item in list" :key="item.id" class="card">
-          <div class="card-head">
-            <span class="card-name">{{ item.name }}</span>
-            <el-tag size="small" type="info" effect="plain">{{ item.department }}</el-tag>
+    <el-empty v-if="!list.length" description="没有找到匹配的服务事项">
+      <el-button @click="keyword = ''; category = 'all'">清除筛选</el-button>
+    </el-empty>
+
+    <section v-else class="service-list" aria-live="polite">
+      <article v-for="item in list" :key="item.id" class="service-row">
+        <div class="service-icon">
+          <el-icon><component :is="categoryIcons[item.category] || Grid" /></el-icon>
+        </div>
+
+        <div class="service-copy">
+          <div class="service-title-line">
+            <h2>{{ item.name }}</h2>
+            <el-tag type="info" effect="plain">{{ item.department }}</el-tag>
           </div>
-          <p class="card-summary">{{ item.summary }}</p>
-          <dl class="card-meta">
-            <div>
-              <dt>所需材料</dt>
-              <dd>{{ item.materials }}</dd>
-            </div>
-            <div>
-              <dt>办理时限</dt>
-              <dd>{{ item.sla }}</dd>
-            </div>
-          </dl>
-          <div class="card-foot">
-            <el-button type="primary" size="small" @click="goApply(item)">去办理</el-button>
+          <p>{{ item.summary }}</p>
+          <div class="service-meta">
+            <span><strong>所需材料</strong>{{ item.materials }}</span>
+            <span><strong>办理时限</strong>{{ item.sla }}</span>
           </div>
         </div>
-      </div>
-    </div>
+
+        <button type="button" class="service-action" @click="goApply(item)">
+          去办理
+          <el-icon><ArrowRight /></el-icon>
+        </button>
+      </article>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+.services-page {
+  max-width: 1480px;
+  margin: 0 auto;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  background: #ffffff;
+.service-toolbar {
+  margin-bottom: 20px;
+  padding: 20px 22px;
 }
 
-.card-head {
+.service-toolbar-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
+}
+
+.service-toolbar-head h2 {
+  margin: 0 0 4px;
+  color: var(--sp-ink);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.service-toolbar-head p {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 12px;
+}
+
+.service-search {
+  width: 320px;
+}
+
+.filter-row {
+  display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf1ee;
 }
 
-.card-name {
+.filter-pill {
+  min-height: 32px;
+  padding: 6px 13px;
+  border: 1px solid var(--sp-border);
+  border-radius: 999px;
+  background: var(--sp-surface);
+  color: var(--sp-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.filter-pill:hover {
+  border-color: var(--sp-primary);
+  color: var(--sp-primary);
+}
+
+.filter-pill.active {
+  border-color: var(--sp-primary);
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+}
+
+.service-list {
+  display: grid;
+  gap: 10px;
+}
+
+.service-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-panel);
+  background: var(--sp-surface);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.service-row:hover {
+  border-color: var(--sp-border-strong);
+  background: #fbfcfa;
+}
+
+.service-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+  font-size: 20px;
+}
+
+.service-copy {
+  min-width: 0;
+}
+
+.service-title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.service-title-line h2 {
+  margin: 0;
+  color: var(--sp-ink);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 650;
 }
 
-.card-summary {
-  flex: 1;
-  margin: 10px 0 12px;
-  font-size: 13px;
-  color: #606266;
+.service-copy > p {
+  max-width: 820px;
+  margin: 6px 0 10px;
+  color: var(--sp-muted);
+  font-size: 12px;
   line-height: 1.6;
 }
 
-.card-meta {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 14px;
-  font-size: 13px;
-}
-
-.card-meta > div {
+.service-meta {
   display: flex;
-  gap: 8px;
+  gap: 24px;
+  flex-wrap: wrap;
+  color: var(--sp-muted);
+  font-size: 11px;
 }
 
-.card-meta dt {
-  flex: 0 0 64px;
-  color: #909399;
+.service-meta strong {
+  margin-right: 7px;
+  color: var(--sp-text);
+  font-weight: 620;
 }
 
-.card-meta dd {
-  margin: 0;
-  color: #303133;
+.service-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--sp-border-strong);
+  border-radius: var(--sp-radius-control);
+  background: var(--sp-surface);
+  color: var(--sp-primary-strong);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
-.card-foot {
-  display: flex;
-  justify-content: flex-end;
+.service-action:hover {
+  border-color: var(--sp-primary);
+  background: var(--sp-sage);
+}
+
+@media (max-width: 1280px) {
+  .service-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .service-action {
+    grid-column: 2;
+    justify-self: end;
+  }
 }
 </style>

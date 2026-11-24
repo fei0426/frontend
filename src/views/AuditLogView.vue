@@ -198,3 +198,15 @@ onMounted(fetchList)
   white-space: pre-wrap;
 }
 </style>
+
+<style scoped>
+.panel {
+  padding: 18px 22px 22px;
+}
+
+.panel pre {
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface-soft);
+  color: var(--sp-text);
+}
+</style>

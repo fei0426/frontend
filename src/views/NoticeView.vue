@@ -161,3 +161,48 @@ function markAllRead() {
   list-style: none;
 }
 </style>
+
+<style scoped>
+.panel {
+  padding: 18px 22px 8px;
+}
+
+.notice-list {
+  margin-top: 2px;
+}
+
+.notice {
+  padding: 16px 4px;
+  border-bottom-color: #edf1ee;
+  transition: background-color 160ms ease;
+}
+
+.notice:hover {
+  background: var(--sp-surface-soft);
+}
+
+.notice:hover .notice-title {
+  color: var(--sp-primary);
+}
+
+.notice-title {
+  color: var(--sp-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detail-title {
+  font-size: 21px;
+  font-weight: 650;
+}
+
+.detail-meta {
+  font-size: 12px;
+}
+
+.detail-content {
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.85;
+}
+</style>
