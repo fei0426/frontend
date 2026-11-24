@@ -16,6 +16,7 @@ const routes = [
     component: () => import('../views/QrConfirmView.vue'),
     meta: { title: '扫码登录确认' }
   },
+  { path: '/sso-callback', name: 'sso-callback', component: () => import('../views/SsoCallbackView.vue'), meta: { requiresAuth: false } },
   {
     path: '/',
     component: BasicLayout,
@@ -53,8 +54,8 @@ router.beforeEach(async (to) => {
     return auth.isLoggedIn ? '/profile' : true
   }
 
-  // 手机端扫码确认页无需登录
-  if (to.path === '/qr-confirm') {
+  // 手机端扫码确认页 / SSO 回调页均无需登录
+  if (to.path === '/qr-confirm' || to.path === '/sso-callback') {
     return true
   }
 

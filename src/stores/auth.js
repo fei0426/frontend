@@ -32,11 +32,15 @@ export const useAuthStore = defineStore('rbac-auth', {
       await this.fetchUserInfo()
     },
 
-    // 扫码登录：手机端确认后，电脑端直接拿轮询到的令牌建立会话
+    // 扫码登录 / SSO 登录：拿到令牌后直接建立会话
     async loginWithToken(token) {
       this.token = token
       localStorage.setItem('rbac_token', token)
       await this.fetchUserInfo()
+    },
+
+    async ssoLogin({ token }) {
+      return this.loginWithToken(token)
     },
 
     async fetchUserInfo() {
