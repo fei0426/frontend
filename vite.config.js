@@ -11,6 +11,13 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:10086',
+        changeOrigin: true
+      },
+      // 后端上传文件返回 /uploads/... 相对路径，开发环境同样代理到后端，
+      // 否则浏览器会向 Vite 的 5173 端口请求并得到 404。
+      '/uploads': {
+        target: 'http://localhost:10086',
+        changeOrigin: true
         changeOrigin: true,
         // 失物招领实时聊天走 WebSocket：/api/ws/lostfound-chat
         ws: true

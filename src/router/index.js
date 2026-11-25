@@ -20,7 +20,7 @@ const routes = [
   {
     path: '/',
     component: BasicLayout,
-    redirect: '/profile',
+    redirect: '/home',
     children: [
       ...menuRoutes,
       ...extraRoutes,

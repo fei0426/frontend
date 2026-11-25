@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Menu } from '@element-plus/icons-vue'
+import { ArrowDown, Bell, Menu, School, SwitchButton, User } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
 import { menuTree } from '../router/menu'
@@ -12,8 +12,10 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-// 未读数量跟着通知数据走，标记已读后角标会立刻减少
 const unreadCount = computed(() => notices.filter((item) => item.unread).length)
+const pageTitle = computed(() => route.meta?.title || '工作台')
+const authInitial = computed(() => (auth.name || '校园用户').trim().slice(0, 1))
+const roleLabel = computed(() => auth.roles?.join(' / ') || '校园用户')
 
 const noticeVisible = ref(false)
 const mobileMenuOpen = ref(false)
@@ -35,7 +37,6 @@ onBeforeUnmount(() => {
   mediaQuery?.removeEventListener('change', syncViewport)
 })
 
-/** 点一条就标为已读，弹窗保持打开，方便看出角标在减 */
 function openNotice(item) {
   item.unread = false
 }
@@ -50,10 +51,6 @@ function goAllNotices() {
   router.push('/notices')
 }
 
-/**
- * 菜单级权限控制。
- * 分组先过滤子项，子项全被过滤掉的分组整组不渲染，避免出现空分组。
- */
 const visibleMenus = computed(() =>
   menuTree
     .map((node) => {
@@ -68,30 +65,46 @@ const visibleMenus = computed(() =>
     .filter(Boolean)
 )
 
-const pageTitle = computed(() => route.meta?.title || '')
-
 async function handleLogout() {
   try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+      type: 'warning',
+      confirmButtonText: '退出',
+      cancelButtonText: '取消'
+    })
   } catch {
     return
   }
   auth.logout()
   router.push('/login')
 }
+
+function handleUserCommand(command) {
+  if (command === 'profile') {
+    router.push('/profile')
+    return
+  }
+  if (command === 'logout') {
+    handleLogout()
+  }
+}
 </script>
 
 <template>
   <el-container class="layout">
     <div v-if="isMobile && mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false" />
+
     <el-aside
-      width="220px"
+      width="244px"
       class="layout-aside"
       :class="{ 'is-mobile-open': mobileMenuOpen }"
     >
       <div class="layout-brand">
-        <span class="layout-logo">🎓</span>
-        <span class="layout-brand-text">校园通</span>
+        <span class="layout-logo"><el-icon><School /></el-icon></span>
+        <span class="layout-brand-copy">
+          <strong>校园通</strong>
+          <small>StudyPal Service Desk</small>
+        </span>
       </div>
 
       <el-scrollbar class="layout-scroll">
@@ -124,9 +137,14 @@ async function handleLogout() {
           </template>
         </el-menu>
       </el-scrollbar>
+
+      <div class="layout-aside-foot">
+        <span class="layout-status-dot" />
+        <span>校园服务运行中</span>
+      </div>
     </el-aside>
 
-    <el-container>
+    <el-container class="layout-content">
       <el-header class="layout-header">
         <div class="header-left">
           <el-button
@@ -137,7 +155,11 @@ async function handleLogout() {
             circle
             @click="mobileMenuOpen = !mobileMenuOpen"
           />
-          <h1 class="layout-page-title">{{ pageTitle }}</h1>
+          <div class="layout-breadcrumb">
+            <span>校园通</span>
+            <i>/</i>
+            <strong>{{ pageTitle }}</strong>
+          </div>
         </div>
 
         <div class="layout-header-right">
@@ -187,20 +209,27 @@ async function handleLogout() {
             </div>
           </el-popover>
 
-          <el-divider direction="vertical" />
+          <el-dropdown trigger="click" @command="handleUserCommand">
+            <button class="layout-user-menu" type="button">
+              <span class="layout-avatar">{{ authInitial }}</span>
+              <span class="layout-user-copy">
+                <strong>{{ auth.name || '校园用户' }}</strong>
+                <small>{{ roleLabel }}</small>
+              </span>
+              <el-icon class="layout-user-arrow"><ArrowDown /></el-icon>
+            </button>
 
-          <el-tag
-            v-for="role in auth.roles"
-            :key="role"
-            size="small"
-            type="info"
-            effect="plain"
-          >
-            {{ role }}
-          </el-tag>
-          <span class="layout-user">{{ auth.name }}</span>
-
-          <el-button link type="primary" @click="handleLogout">退出登录</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile" :icon="User">
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" :icon="SwitchButton" divided>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
 
@@ -214,30 +243,62 @@ async function handleLogout() {
 <style scoped>
 .layout {
   height: 100vh;
+  background: var(--sp-canvas);
+}
+
+.layout-content {
+  min-width: 0;
 }
 
 .layout-aside {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-right: 1px solid #e4e7ed;
-  transition: transform 0.2s ease;
+  border-right: 1px solid var(--sp-border);
+  background: #f7f9f5;
+  transition: transform 180ms ease;
 }
 
 .layout-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 60px;
-  flex: 0 0 60px;
-  padding: 0 18px;
-  font-size: 16px;
-  font-weight: 500;
-  border-bottom: 1px solid #e4e7ed;
+  gap: 11px;
+  height: 76px;
+  flex: 0 0 76px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--sp-border);
 }
 
 .layout-logo {
-  font-size: 20px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--sp-primary);
+  color: #fff;
+  font-size: 19px;
+  box-shadow: 0 5px 14px rgba(31, 107, 87, 0.18);
+}
+
+.layout-brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.layout-brand-copy strong {
+  color: var(--sp-ink);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.layout-brand-copy small {
+  color: var(--sp-muted);
+  font-size: 10px;
+  font-weight: 550;
+  line-height: 1.2;
 }
 
 .layout-scroll {
@@ -247,6 +308,29 @@ async function handleLogout() {
 
 .layout-menu {
   border-right: none;
+  padding: 10px 0 18px;
+}
+
+.layout-aside-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 18px;
+  padding: 11px 12px;
+  border: 1px solid var(--sp-border);
+  border-radius: 10px;
+  background: var(--sp-surface);
+  color: var(--sp-muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.layout-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sp-primary);
+  box-shadow: 0 0 0 3px rgba(31, 107, 87, 0.12);
 }
 
 .layout-header {
@@ -254,15 +338,11 @@ async function handleLogout() {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: 60px;
-  background: #ffffff;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.layout-page-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
+  height: 64px;
+  padding: 0 var(--sp-page-gutter);
+  border-bottom: 1px solid var(--sp-border);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -272,6 +352,29 @@ async function handleLogout() {
   min-width: 0;
 }
 
+.layout-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--sp-faint);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.layout-breadcrumb i {
+  color: #bdc7c0;
+  font-style: normal;
+}
+
+.layout-breadcrumb strong {
+  overflow: hidden;
+  color: var(--sp-text);
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mobile-menu-button {
   display: none;
 }
@@ -279,16 +382,72 @@ async function handleLogout() {
 .layout-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.layout-user {
+.layout-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 7px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sp-text);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.layout-user-menu:hover {
+  border-color: var(--sp-border);
+  background: var(--sp-surface-soft);
+}
+
+.layout-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
   font-size: 14px;
+  font-weight: 700;
+}
+
+.layout-user-copy {
+  display: grid;
+  min-width: 90px;
+  gap: 1px;
+  text-align: left;
+}
+
+.layout-user-copy strong {
+  color: var(--sp-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.layout-user-copy small {
+  max-width: 150px;
+  overflow: hidden;
+  color: var(--sp-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-user-arrow {
+  color: var(--sp-faint);
+  font-size: 12px;
 }
 
 .layout-main {
-  background: #f5f7fa;
-  padding: 20px;
+  overflow: auto;
+  background: var(--sp-canvas);
+  padding: 26px var(--sp-page-gutter) 32px;
 }
 
 .mobile-overlay {
@@ -303,7 +462,7 @@ async function handleLogout() {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 1001;
-    width: 220px !important;
+    width: 244px !important;
     transform: translateX(-100%);
   }
 
@@ -316,98 +475,100 @@ async function handleLogout() {
   }
 
   .layout-header {
-    padding: 0 12px;
+    padding: 0 16px;
   }
 
-  .layout-header-right {
-    gap: 6px;
-  }
-
-  .layout-header-right .el-tag,
-  .layout-user,
-  .layout-header-right .el-divider {
+  .layout-user-copy,
+  .layout-user-arrow {
     display: none;
   }
 
   .layout-main {
-    padding: 12px;
+    padding: 18px 16px 24px;
   }
 
-  .layout-page-title {
+  .layout-breadcrumb {
     overflow: hidden;
     max-width: 170px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+
+  .layout-breadcrumb span,
+  .layout-breadcrumb i {
+    display: none;
   }
 }
 </style>
 
 <style>
-/*
-  el-popover 的内容会被挂到 body 上，scoped 样式覆盖不到，
-  所以用 popper-class 配一段全局样式。
-*/
+.notice-popover.el-popover {
+  padding: 14px;
+  border: 1px solid var(--sp-border);
+  border-radius: 14px;
+  box-shadow: var(--sp-shadow-float);
+}
+
 .notice-popover .notice-popover-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f2f3f5;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--sp-border);
 }
 
 .notice-popover .notice-popover-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 650;
 }
 
-/* 消息多了可以滚动查看 */
 .notice-popover .notice-list {
+  max-height: 320px;
   margin: 0;
   padding: 0;
-  list-style: none;
-  max-height: 320px;
   overflow-y: auto;
+  list-style: none;
 }
 
 .notice-popover .notice-item {
-  padding: 10px 6px;
-  border-bottom: 1px solid #f7f8fa;
+  padding: 12px 6px;
+  border-bottom: 1px solid #edf1ee;
   cursor: pointer;
 }
 
 .notice-popover .notice-item:hover {
-  background: #f5f7fa;
+  background: var(--sp-surface-soft);
 }
 
 .notice-popover .notice-item-title {
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--sp-text);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .notice-popover .notice-item.is-unread .notice-item-title {
-  font-weight: 500;
+  color: var(--sp-ink);
+  font-weight: 600;
 }
 
 .notice-popover .notice-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #f56c6c;
   flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--sp-amber);
 }
 
 .notice-popover .notice-item-meta {
-  margin-top: 4px;
+  margin-top: 5px;
+  color: var(--sp-muted);
   font-size: 12px;
-  color: #909399;
 }
 
 .notice-popover .notice-popover-foot {
-  padding-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sp-border);
   text-align: center;
-  border-top: 1px solid #f2f3f5;
 }
 </style>

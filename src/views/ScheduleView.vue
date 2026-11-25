@@ -212,3 +212,76 @@ function searchRoom() {
   font-weight: 500;
 }
 </style>
+
+<style scoped>
+.page-head,
+.panel {
+  max-width: 1480px;
+  margin-inline: auto;
+}
+
+.course-list {
+  display: grid;
+  gap: 10px;
+}
+
+.course {
+  align-items: center;
+  gap: 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--sp-border);
+  border-radius: 10px;
+  background: var(--sp-surface-soft);
+}
+
+.course:last-child {
+  border-bottom: 1px solid var(--sp-border);
+}
+
+.course-time {
+  flex-basis: 148px;
+  padding-right: 18px;
+  border-right: 1px solid var(--sp-border);
+}
+
+.course-period {
+  color: var(--sp-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.course-main {
+  display: grid;
+  gap: 4px;
+}
+
+.course-name {
+  margin: 0;
+  color: var(--sp-ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.slot {
+  padding: 8px 9px;
+  border: 1px solid #cfe0d6;
+  border-radius: 7px;
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+}
+
+.slot-name {
+  color: var(--sp-primary-strong);
+  font-weight: 650;
+}
+
+.slot .muted {
+  margin-top: 3px;
+  color: #628071;
+  font-size: 11px;
+}
+
+.timetable :deep(td) {
+  height: 82px;
+}
+</style>

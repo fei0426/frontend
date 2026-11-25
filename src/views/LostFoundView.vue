@@ -1,6 +1,7 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Box,
   Briefcase,
@@ -13,9 +14,16 @@ import {
   Postcard,
   Refresh,
   Search,
+  UploadFilled,
   View
 } from '@element-plus/icons-vue'
 
+import {
+  claimLostItem,
+  createLostItem,
+  listLostItems,
+  lostCategoryOptions
+} from '../api/lostfound'
 import { useAuthStore } from '../stores/auth'
 import { useLostChatStore } from '../stores/lostChat'
 import LostChatWidget from '../components/LostChatWidget.vue'
@@ -23,146 +31,183 @@ import LostChatWidget from '../components/LostChatWidget.vue'
 const auth = useAuthStore()
 const chat = useLostChatStore()
 
+const router = useRouter()
 const activeTab = ref('found')
 const keyword = ref('')
-const category = ref('')
+const categoryCode = ref(null)
 const place = ref('')
+const loading = ref(false)
+const items = ref([])
+const total = ref(0)
+const page = ref(1)
+const size = ref(12)
 const dialogVisible = ref(false)
+const submitting = ref(false)
+const uploadFiles = ref([])
 
-/**
- * 分类对应的图标和封面底色。
- * 有真实照片时图片优先，没有照片就显示分类图标占位。
- */
-const categoryMeta = {
-  箱包类: { icon: Briefcase, tone: 'bag' },
-  证件卡片: { icon: Postcard, tone: 'card' },
-  数码产品: { icon: Headset, tone: 'digital' },
-  钥匙: { icon: Key, tone: 'key' },
-  其他: { icon: Box, tone: 'other' }
+const categoryIcons = {
+  1: Postcard,
+  2: Headset,
+  3: Box,
+  4: Box,
+  5: Briefcase,
+  6: Key
 }
 
-const categoryOptions = Object.keys(categoryMeta)
-
-function catMeta(name) {
-  return categoryMeta[name] || categoryMeta['其他']
-}
-
-// 模拟数据，接口就绪后替换为 GET /api/lostfound/items
-const items = ref([
-  {
-    id: 1, type: 'found', title: '黑色双肩包', category: '箱包类',
-    place: '图书馆二楼借阅区', date: '2026-10-11 16:38',
-    desc: '物品成色较新，有轻微使用痕迹', publisher: '李同学',
-    contact: '138****6621', status: '寻找中', views: 104, comments: 2, mine: true
-  },
-  {
-    id: 2, type: 'found', title: '校园卡一张', category: '证件卡片',
-    place: '宿舍区门口', date: '2026-10-11 15:53',
-    desc: '物品内有重要个人物品，请失主尽快联系', publisher: '王同学',
-    contact: '图书馆前台', status: '寻找中', views: 91, comments: 2, mine: false
-  },
-  {
-    id: 3, type: 'found', title: 'AirPods Pro 耳机', category: '数码产品',
-    place: '风味餐厅', date: '2026-10-11 07:21',
-    desc: '物品放置在保安室/前台，请携带有效证件认领', publisher: '赵同学',
-    contact: '159****8802', status: '寻找中', views: 16, comments: 8, mine: false
-  },
-  {
-    id: 4, type: 'lost', title: '寻找一串钥匙', category: '钥匙',
-    place: '教学楼A座305', date: '2026-10-10 18:02',
-    desc: '钥匙扣上有蓝色小海豚挂件，拾到请与我联系', publisher: '周同学',
-    contact: '137****4410', status: '寻找中', views: 63, comments: 4, mine: true
-  },
-  {
-    id: 5, type: 'lost', title: '丢失蓝色保温杯', category: '其他',
-    place: '体育馆看台', date: '2026-10-10 09:15',
-    desc: '杯身有卡通贴纸，已在看台附近找回', publisher: '陈同学',
-    contact: '186****2231', status: '已找到', views: 28, comments: 1, mine: false
-  },
-  {
-    id: 6, type: 'lost', title: '寻找学生证', category: '证件卡片',
-    place: '校医院门口', date: '2026-10-09 14:40',
-    desc: '卡面姓名孙同学，拾到请交到学工办', publisher: '孙同学',
-    contact: '135****9077', status: '寻找中', views: 45, comments: 3, mine: false
-  }
-])
-
-const form = reactive({ title: '', category: '', place: '', date: '', desc: '', contact: '' })
-
-function nowText() {
-  const d = new Date()
-  const p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-const placeOptions = computed(() => [...new Set(items.value.map((item) => item.place))])
-
-const list = computed(() => {
-  const kw = keyword.value.trim()
-  return items.value.filter((item) => {
-    if (item.type !== activeTab.value) return false
-    if (category.value && item.category !== category.value) return false
-    if (place.value && item.place !== place.value) return false
-    if (!kw) return true
-    return item.title.includes(kw) || item.place.includes(kw) || item.desc.includes(kw)
-  })
+const form = reactive({
+  title: '',
+  categoryCode: null,
+  place: '',
+  happenDate: '',
+  description: '',
+  contact: ''
 })
+
+const placeOptions = computed(() =>
+  [...new Set(items.value.map((item) => item.place).filter(Boolean))]
+)
+
+watch([activeTab, categoryCode, place], () => {
+  page.value = 1
+  fetchList()
+})
+
+onMounted(fetchList)
+
+async function fetchList() {
+  loading.value = true
+  try {
+    const data = await listLostItems({
+      type: activeTab.value,
+      keyword: keyword.value.trim() || undefined,
+      categoryCode: categoryCode.value || undefined,
+      place: place.value || undefined,
+      page: page.value,
+      size: size.value
+    })
+    items.value = data.list || []
+    total.value = data.total || 0
+  } catch (error) {
+    ElMessage.error(error.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+function search() {
+  page.value = 1
+  fetchList()
+}
 
 function resetFilters() {
   keyword.value = ''
-  category.value = ''
+  categoryCode.value = null
   place.value = ''
+  page.value = 1
+  fetchList()
+}
+
+function openDetail(item) {
+  router.push(`/lostfound/${item.id}`)
 }
 
 function openPublish() {
-  Object.assign(form, { title: '', category: '', place: '', date: nowText(), desc: '', contact: '' })
+  Object.assign(form, {
+    title: '',
+    categoryCode: null,
+    place: '',
+    happenDate: '',
+    description: '',
+    contact: ''
+  })
+  uploadFiles.value = []
   dialogVisible.value = true
 }
 
-function submitPublish() {
-  if (!form.title || !form.place) {
+function statusClass(status) {
+  return status === 1 ? 'is-seeking' : 'is-done'
+}
+
+function formatDate(value) {
+  return value || '-'
+}
+
+async function submitPublish() {
+  if (!form.title.trim() || !form.place.trim()) {
     ElMessage.warning('请填写标题和地点')
     return
   }
-  items.value.unshift({
-    id: Date.now(),
-    type: activeTab.value,
-    title: form.title,
-    category: form.category || '其他',
-    place: form.place,
-    date: form.date || nowText(),
-    desc: form.desc || '暂无补充描述',
-    publisher: auth.name || '我',
-    contact: form.contact || '未留联系方式',
-    status: '寻找中',
-    views: 0,
-    comments: 0,
-    mine: true
+  if (!form.categoryCode) {
+    ElMessage.warning('请选择物品分类')
+    return
+  }
+  if (!form.happenDate) {
+    ElMessage.warning('请选择日期')
+    return
+  }
+  if (uploadFiles.value.length > 3) {
+    ElMessage.warning('最多上传 3 张图片')
+    return
+  }
+
+  const data = new FormData()
+  data.append('itemType', activeTab.value)
+  data.append('title', form.title.trim())
+  data.append('categoryCode', form.categoryCode)
+  data.append('place', form.place.trim())
+  data.append('happenDate', form.happenDate)
+  data.append('description', form.description || '')
+  data.append('contact', form.contact || '')
+  uploadFiles.value.forEach((file) => {
+    if (file.raw) data.append('images', file.raw)
   })
-  dialogVisible.value = false
-  ElMessage.success('已发布')
+
+  submitting.value = true
+  try {
+    const detail = await createLostItem(data)
+    dialogVisible.value = false
+    ElMessage.success('发布成功')
+    router.push(`/lostfound/${detail.id}`)
+  } catch (error) {
+    ElMessage.error(error.message)
+  } finally {
+    submitting.value = false
+  }
 }
 
-function handleClaim(item) {
-  item.status = '已找到'
-  ElMessage.success('已标记为找回完成')
+async function handleClaim(item) {
+  try {
+    await ElMessageBox.confirm('确认该物品已经找到吗？', '标记状态', {
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+  try {
+    const updated = await claimLostItem(item.id)
+    const index = items.value.findIndex((row) => row.id === item.id)
+    if (index >= 0) items.value[index] = updated
+    ElMessage.success('已标记为找到')
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
 }
 </script>
 
 <template>
   <div class="lostfound">
-    <!-- 顶部标题区 -->
-    <section class="lf-hero">
+    <header class="page-head">
       <div>
-        <h2 class="lf-hero-title">失物招领</h2>
-        <p class="lf-hero-desc">发布和查找校园遗失物品，帮助失主快速找回</p>
+        <h1 class="page-title">失物招领</h1>
+        <p class="page-desc">
+          发布和查找校园遗失物品，所有信息保存在数据库中，可跨账号查看。
+        </p>
       </div>
-      <el-button type="primary" size="large" :icon="Plus" @click="openPublish">
+      <el-button type="primary" :icon="Plus" @click="openPublish">
         发布信息
       </el-button>
-    </section>
+    </header>
 
-    <!-- 列表区 -->
     <section class="lf-body">
       <el-tabs v-model="activeTab" class="lf-tabs">
         <el-tab-pane label="失物招领" name="found" />
@@ -176,21 +221,51 @@ function handleClaim(item) {
           placeholder="搜索物品名称、描述、地点"
           clearable
           class="lf-search"
+          @keyup.enter="search"
         />
 
         <div class="lf-filters-right">
-          <el-select v-model="category" placeholder="全部类型" clearable class="lf-select">
-            <el-option v-for="name in categoryOptions" :key="name" :label="name" :value="name" />
+          <el-select
+            v-model="categoryCode"
+            placeholder="全部类型"
+            clearable
+            class="lf-select"
+          >
+            <el-option
+              v-for="category in lostCategoryOptions"
+              :key="category.code"
+              :label="category.label"
+              :value="category.code"
+            />
           </el-select>
 
           <el-select v-model="place" placeholder="全部地点" clearable class="lf-select">
             <el-option v-for="name in placeOptions" :key="name" :label="name" :value="name" />
           </el-select>
 
+          <el-button :icon="Search" type="primary" @click="search">搜索</el-button>
           <el-button :icon="Refresh" @click="resetFilters">重置</el-button>
         </div>
       </div>
 
+      <div v-loading="loading">
+        <el-empty v-if="!loading && !items.length" description="暂时没有相关信息" />
+
+        <div v-else class="lf-grid">
+          <article
+            v-for="item in items"
+            :key="item.id"
+            class="lf-card"
+            @click="openDetail(item)"
+          >
+            <div class="lf-cover" :class="'category-' + item.categoryCode">
+              <img v-if="item.images?.length" :src="item.images[0]" :alt="item.title" />
+              <el-icon v-else class="lf-cover-icon">
+                <component :is="categoryIcons[item.categoryCode] || Box" />
+              </el-icon>
+
+              <span class="lf-status" :class="statusClass(item.status)">
+                {{ item.statusName }}
       <el-empty v-if="!list.length" description="暂时没有相关信息" />
 
       <div v-else class="lf-grid">
@@ -222,11 +297,44 @@ function handleClaim(item) {
               <span class="lf-meta-row">
                 <el-icon><Location /></el-icon>{{ item.place }}
               </span>
-              <span class="lf-meta-row">
-                <el-icon><Clock /></el-icon>{{ item.date }}
+
+              <span class="lf-views">
+                <el-icon><View /></el-icon>{{ item.viewCount }}
               </span>
             </div>
 
+            <div class="lf-card-body">
+              <h3 class="lf-card-title">{{ item.title }}</h3>
+              <span class="lf-category">{{ item.categoryName }}</span>
+
+              <div class="lf-meta">
+                <span class="lf-meta-row">
+                  <el-icon><Location /></el-icon>{{ item.place }}
+                </span>
+                <span class="lf-meta-row">
+                  <el-icon><Clock /></el-icon>{{ formatDate(item.happenDate) }}
+                </span>
+              </div>
+
+              <p class="lf-desc">{{ item.description || '暂无补充描述' }}</p>
+
+              <div class="lf-card-foot">
+                <span>发布者：{{ item.publisher }}</span>
+                <span class="lf-foot-right">
+                  <el-button
+                    v-if="item.mine && item.status === 1"
+                    link
+                    type="primary"
+                    size="small"
+                    @click.stop="handleClaim(item)"
+                  >
+                    标记已找到
+                  </el-button>
+                  <span class="lf-comments">
+                    <el-icon><ChatDotRound /></el-icon>{{ item.commentCount }}
+                  </span>
+                </span>
+              </div>
             <p class="lf-desc">{{ item.desc }}</p>
 
             <div class="lf-card-foot">
@@ -246,52 +354,85 @@ function handleClaim(item) {
                 </button>
               </span>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
       </div>
+
+      <el-pagination
+        v-if="total > size"
+        v-model:current-page="page"
+        :page-size="size"
+        :total="total"
+        layout="prev, pager, next, total"
+        class="lf-pagination"
+        @current-change="fetchList"
+      />
     </section>
 
-    <el-dialog v-model="dialogVisible" title="发布信息" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="发布失物招领"
+      width="620px"
+      :close-on-click-modal="false"
+    >
       <el-form :model="form" label-position="top">
-        <el-form-item label="标题">
-          <el-input v-model="form.title" placeholder="如：黑色双肩包" />
+        <el-form-item label="标题" required>
+          <el-input v-model="form.title" maxlength="128" show-word-limit />
         </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%">
-            <el-option v-for="name in categoryOptions" :key="name" :label="name" :value="name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="地点">
-          <el-input v-model="form.place" placeholder="如：图书馆二楼借阅区" />
-        </el-form-item>
-        <el-form-item label="时间">
-          <el-date-picker
-            v-model="form.date"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm"
-            placeholder="选择时间"
-            style="width: 100%"
-          />
+        <div class="publish-grid">
+          <el-form-item label="分类" required>
+            <el-select v-model="form.categoryCode" placeholder="请选择分类">
+              <el-option
+                v-for="category in lostCategoryOptions"
+                :key="category.code"
+                :label="category.label"
+                :value="category.code"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="日期" required>
+            <el-date-picker
+              v-model="form.happenDate"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="选择日期"
+            />
+          </el-form-item>
+        </div>
+        <el-form-item label="地点" required>
+          <el-input v-model="form.place" maxlength="128" />
         </el-form-item>
         <el-form-item label="详细描述">
-          <el-input v-model="form.desc" type="textarea" :rows="3" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="4"
+            maxlength="1000"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="联系方式">
-          <el-input v-model="form.contact" placeholder="手机号或微信" />
+          <el-input v-model="form.contact" maxlength="64" />
         </el-form-item>
         <el-form-item label="图片">
-          <el-upload :auto-upload="false" :limit="3">
-            <el-button>选择文件</el-button>
-            <template #tip>
-              <div class="lf-muted">最多 3 张，支持 jpg / png</div>
-            </template>
+          <el-upload
+            v-model:file-list="uploadFiles"
+            list-type="picture-card"
+            :auto-upload="false"
+            :limit="3"
+            accept="image/jpeg,image/png,image/webp"
+          >
+            <el-icon><UploadFilled /></el-icon>
           </el-upload>
+          <div class="lf-muted">最多 3 张，单张不超过 5MB，支持 JPG / PNG / WebP。</div>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitPublish">发布</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitPublish">
+          发布
+        </el-button>
       </template>
     </el-dialog>
 
@@ -301,70 +442,20 @@ function handleClaim(item) {
 </template>
 
 <style scoped>
-/*
-  配色取自参考图：深蓝主色 + 浅灰底 + 白色卡片 + 琥珀/绿色状态徽章。
-  目前只作用在本页，其他页面保持原样。
-*/
 .lostfound {
-  --lf-primary: #2563eb;
-  --lf-primary-dark: #1d4ed8;
-  --lf-surface: #ffffff;
-  --lf-border: #e5e7eb;
-  --lf-text: #0f172a;
-  --lf-muted: #64748b;
-  --lf-soft: #94a3b8;
+  max-width: 1480px;
+  margin: 0 auto;
 }
 
-.lf-muted {
-  color: var(--lf-soft);
-}
-
-/* ---------- 顶部标题区 ---------- */
-.lf-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 22px 24px;
-  background: var(--lf-surface);
-  border: 1px solid var(--lf-border);
-  border-radius: 8px;
-}
-
-.lf-hero-title {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--lf-text);
-}
-
-.lf-hero-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--lf-muted);
-}
-
-/* ---------- 列表区 ---------- */
 .lf-body {
-  margin-top: 16px;
-  padding: 4px 24px 24px;
-  background: var(--lf-surface);
-  border: 1px solid var(--lf-border);
-  border-radius: 8px;
+  padding: 18px 22px 24px;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-panel);
+  background: var(--sp-surface);
 }
 
 .lf-tabs :deep(.el-tabs__header) {
-  margin-bottom: 18px;
-}
-
-.lf-tabs :deep(.el-tabs__item) {
-  font-size: 15px;
-}
-
-/* Tab 只当切换器用，内容在下面的卡片网格里，隐藏空的标签面板 */
-.lf-tabs :deep(.el-tabs__content) {
-  display: none;
+  margin-bottom: 16px;
 }
 
 .lf-filters {
@@ -374,16 +465,20 @@ function handleClaim(item) {
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid var(--sp-border);
+  border-radius: 10px;
+  background: var(--sp-surface-soft);
 }
 
 .lf-search {
-  width: 300px;
+  width: 340px;
 }
 
 .lf-filters-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -391,131 +486,125 @@ function handleClaim(item) {
   width: 150px;
 }
 
-/* ---------- 卡片网格 ---------- */
 .lf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .lf-card {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--lf-surface);
-  border: 1px solid var(--lf-border);
-  border-radius: 8px;
-  transition: box-shadow 0.2s, transform 0.2s;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-surface);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
 .lf-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border-color: var(--sp-primary);
+  background: #fbfcfa;
 }
 
 .lf-cover {
   position: relative;
-  aspect-ratio: 16 / 10;
   display: flex;
+  aspect-ratio: 4 / 3;
   align-items: center;
   justify-content: center;
+  border-bottom: 1px solid var(--sp-border);
+  background: var(--sp-sage);
 }
 
 .lf-cover img {
-  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.lf-cover.category-1 { background: #dfe6ef; }
+.lf-cover.category-2 { background: #e7e1ed; }
+.lf-cover.category-3 { background: #eee4ce; }
+.lf-cover.category-4 { background: #dce9e5; }
+.lf-cover.category-5 { background: #dce7e1; }
+.lf-cover.category-6 { background: #eee4ce; }
+
 .lf-cover-icon {
-  font-size: 46px;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-/* 没有照片时按分类给出的占位底色 */
-.tone-bag {
-  background: linear-gradient(135deg, #94a9c6, #6b8199);
-}
-
-.tone-card {
-  background: linear-gradient(135deg, #90a9e9, #6d86c9);
-}
-
-.tone-digital {
-  background: linear-gradient(135deg, #aa9cd9, #8577bd);
-}
-
-.tone-key {
-  background: linear-gradient(135deg, #dbba7c, #b9954f);
-}
-
-.tone-other {
-  background: linear-gradient(135deg, #88c0b2, #649b8d);
+  color: rgba(37, 69, 57, 0.55);
+  font-size: 44px;
 }
 
 .lf-status {
   position: absolute;
   top: 12px;
   right: 12px;
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
 }
 
 .lf-status.is-seeking {
-  background: #fde9c8;
-  color: #b45309;
+  background: #f7ead4;
+  color: #8f5d24;
 }
 
 .lf-status.is-done {
-  background: #d3f2d8;
-  color: #15803d;
+  background: #dceee3;
+  color: #2d6b52;
 }
 
 .lf-views {
   position: absolute;
-  left: 12px;
+  left: 13px;
   bottom: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #ffffff;
-  font-size: 12px;
-  text-shadow: 0 1px 3px rgba(15, 23, 42, 0.45);
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--sp-text);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .lf-card-body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px 16px;
+  gap: 9px;
+  padding: 16px 17px 17px;
 }
 
 .lf-card-title {
   margin: 0;
+  color: var(--sp-ink);
   font-size: 16px;
-  font-weight: 600;
-  color: var(--lf-text);
+  font-weight: 650;
 }
 
 .lf-category {
   align-self: flex-start;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #eff6ff;
-  color: var(--lf-primary);
-  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--sp-sage);
+  color: var(--sp-primary-strong);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .lf-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--lf-muted);
+  gap: 7px;
+  color: var(--sp-muted);
+  font-size: 12px;
 }
 
 .lf-meta-row {
@@ -526,10 +615,11 @@ function handleClaim(item) {
 
 .lf-desc {
   display: -webkit-box;
+  min-height: 40px;
   margin: 0;
   overflow: hidden;
-  color: var(--lf-muted);
-  font-size: 13px;
+  color: var(--sp-muted);
+  font-size: 12px;
   line-height: 1.6;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -541,18 +631,44 @@ function handleClaim(item) {
   justify-content: space-between;
   gap: 12px;
   margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-  color: var(--lf-soft);
-  font-size: 13px;
+  padding-top: 13px;
+  border-top: 1px solid #edf1ee;
+  color: var(--sp-faint);
+  font-size: 11px;
 }
 
-.lf-foot-right {
+.lf-foot-right,
+.lf-comments {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
+.lf-pagination {
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.publish-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.publish-grid :deep(.el-select),
+.publish-grid :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.lf-muted {
+  color: var(--sp-faint);
+  font-size: 11px;
+}
+
+@media (max-width: 1280px) {
+  .lf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 .lf-card-chat {
   cursor: pointer;
 }

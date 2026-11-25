@@ -191,3 +191,33 @@ async function handleCancel(row) {
   margin-bottom: 2px;
 }
 </style>
+
+<style scoped>
+.panel {
+  padding: 18px 22px 22px;
+}
+
+.timeline-title {
+  margin: 26px 0 18px;
+  color: var(--sp-ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.timeline-node {
+  color: var(--sp-ink);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+:deep(.el-descriptions__label) {
+  width: 116px;
+  color: var(--sp-muted);
+  font-weight: 600;
+}
+
+:deep(.el-timeline-item__timestamp) {
+  color: var(--sp-faint);
+  font-size: 11px;
+}
+</style>

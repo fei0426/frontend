@@ -148,3 +148,22 @@ function handleRenew(row) {
   margin-bottom: 16px;
 }
 </style>
+
+<style scoped>
+.due-alert {
+  border: 1px solid #ead8b8;
+  background: var(--sp-amber-soft);
+}
+
+.panel {
+  padding: 18px 22px 22px;
+}
+
+.toolbar {
+  margin-bottom: 18px;
+}
+
+.el-table {
+  margin-top: 2px;
+}
+</style>

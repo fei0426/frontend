@@ -102,7 +102,8 @@ onMounted(() => {
     </p>
 
     <!-- 搜索栏 -->
-    <el-form :inline="true" class="search-form">
+    <div class="panel data-panel">
+    <el-form :inline="true" class="search-form data-toolbar">
       <el-form-item label="关键词">
         <el-input
           v-model="query.keyword"
@@ -165,6 +166,7 @@ onMounted(() => {
         @size-change="handleSizeChange"
         @current-change="handlePageChange"
       />
+    </div>
     </div>
 
     <!-- 分配角色弹窗 -->
@@ -230,5 +232,23 @@ onMounted(() => {
 .pagination {
   margin-top: 16px;
   text-align: right;
+}
+</style>
+
+<style scoped>
+.user-manage {
+  padding: 0;
+}
+
+.search-form {
+  margin-bottom: 0;
+}
+
+.search-form :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.pagination {
+  margin-top: 18px;
 }
 </style>

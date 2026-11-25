@@ -353,3 +353,87 @@ async function handleLogout() {
   line-height: 1.6;
 }
 </style>
+
+<style scoped>
+.hello {
+  padding: 24px 26px;
+  border-color: #cfe0d6;
+  background: var(--sp-sage);
+}
+
+.hello-title {
+  color: var(--sp-ink);
+  font-size: 24px;
+  font-weight: 680;
+}
+
+.hello .muted {
+  margin-top: 6px;
+}
+
+.hello-actions {
+  gap: 9px;
+}
+
+.hello-actions :deep(.el-button) {
+  border-color: rgba(31, 107, 87, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--sp-primary-strong);
+}
+
+.hello-actions :deep(.el-button:hover) {
+  border-color: var(--sp-primary);
+  background: var(--sp-surface);
+}
+
+.columns {
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.panel-head {
+  margin-bottom: 8px;
+}
+
+.panel-head .panel-title {
+  font-size: 16px;
+}
+
+.row {
+  padding: 14px 0;
+  border-bottom-color: #edf1ee;
+}
+
+.row-title {
+  color: var(--sp-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.permission-tip {
+  font-size: 12px;
+}
+
+.permission-group {
+  padding: 12px 0;
+  border-bottom-color: #edf1ee;
+}
+
+.permission-module {
+  color: var(--sp-muted);
+  font-weight: 600;
+}
+
+.permission-tag {
+  border-color: var(--sp-border);
+  background: var(--sp-surface-soft);
+}
+
+.actions {
+  gap: 10px;
+}
+
+.info-tip {
+  font-size: 12px;
+}
+</style>

@@ -7,6 +7,7 @@ import {
   DataAnalysis,
   Download,
   Grid,
+  HomeFilled,
   Key,
   Lock,
   Reading,
@@ -19,6 +20,7 @@ import {
 } from '@element-plus/icons-vue'
 
 import ChatView from '../views/ChatView.vue'
+import HomeView from '../views/HomeView.vue'
 import CardView from '../views/CardView.vue'
 import LibraryView from '../views/LibraryView.vue'
 import ScheduleView from '../views/ScheduleView.vue'
@@ -27,6 +29,7 @@ import ServiceApplyView from '../views/ServiceApplyView.vue'
 import MyRequestsView from '../views/MyRequestsView.vue'
 import ApprovalView from '../views/ApprovalView.vue'
 import LostFoundView from '../views/LostFoundView.vue'
+import LostFoundDetailView from '../views/LostFoundDetailView.vue'
 import NoticeView from '../views/NoticeView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import KnowledgeView from '../views/KnowledgeView.vue'
@@ -49,6 +52,7 @@ function item(path, name, component, title, permission, icon) {
  * 菜单和路由表共用这一份数据，避免两头维护对不上。
  */
 export const menuTree = [
+  item('/home', 'home', HomeView, '首页', '', HomeFilled),
   item('/chat', 'chat', ChatView, '智能问答', 'qa:chat:list', ChatDotRound),
   {
     key: 'campus',
@@ -102,6 +106,12 @@ export const menuTree = [
  * 事项申请页从服务事项大厅点进来；通知公告改由右上角通知图标进入，都不进菜单。
  */
 export const extraRoutes = [
+  {
+    path: '/lostfound/:id',
+    name: 'lostfound-detail',
+    component: LostFoundDetailView,
+    meta: { title: '物品详情', permission: 'lost:item:list' }
+  },
   {
     path: '/services/:id/apply',
     name: 'service-apply',
