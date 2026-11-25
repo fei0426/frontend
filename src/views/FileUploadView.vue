@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import SparkMD5 from 'spark-md5'
 import { initUpload, uploadChunk, mergeUpload, uploadSmall } from '../api/file'
 

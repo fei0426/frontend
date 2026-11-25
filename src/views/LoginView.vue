@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { School } from '@element-plus/icons-vue'
+import { toast as ElMessage } from '../utils/toast'
+import NativeInput from '../components/NativeInput.vue'
 
 import { useAuthStore } from '../stores/auth'
 import {
@@ -139,7 +139,12 @@ async function refreshCaptcha() {
   captchaLoading.value = true
   captchaCode.value = ''
   try {
-    const data = await getCaptchaApi()
+    // 首屏的那一次请求已经在 index.html 里提前发出去了（见 window.__captchaPromise），
+    // 这里优先复用，避免再等一个网络往返。
+    const pending = window.__captchaPromise
+    window.__captchaPromise = null
+    const preloaded = pending ? await pending : null
+    const data = preloaded || (await getCaptchaApi())
     captcha.id = data.captchaId || ''
     captcha.image = data.imageBase64 || ''
   } finally {
@@ -359,6 +364,13 @@ async function handleReset() {
   }
 }
 
+/** 忘记密码：切换验证方式后刷新图形验证码 */
+function setChannel(channel) {
+  if (resetForm.channel === channel) return
+  resetForm.channel = channel
+  refreshCaptcha()
+}
+
 function backToSend() {
   resetStep.value = 1
   refreshCaptcha()
@@ -422,38 +434,33 @@ onBeforeUnmount(stopQrPolling)
         </div>
 
         <!-- 登录 -->
-        <el-form
+        <form
           v-if="activeTab === 'login' && loginMode === 'password'"
-          label-position="top"
           class="auth-form"
           @submit.prevent
         >
-          <el-form-item label="用户名">
-            <el-input
+          <div class="field"><label class="field-label">用户名</label>
+            <NativeInput
               v-model="loginForm.username"
-              size="large"
               placeholder="请输入用户名"
               autocomplete="username"
             />
-          </el-form-item>
+          </div>
 
-          <el-form-item label="密码">
-            <el-input
+          <div class="field"><label class="field-label">密码</label>
+            <NativeInput
               v-model="loginForm.password"
-              size="large"
               type="password"
-              show-password
               placeholder="请输入密码"
               autocomplete="current-password"
               @keyup.enter="handleLogin"
             />
-          </el-form-item>
+          </div>
 
-          <el-form-item label="图形验证码">
+          <div class="field"><label class="field-label">图形验证码</label>
             <div class="captcha-row">
-              <el-input
+              <NativeInput
                 v-model="captchaCode"
-                size="large"
                 maxlength="4"
                 placeholder="4 位验证码"
                 @keyup.enter="handleLogin"
@@ -469,50 +476,51 @@ onBeforeUnmount(stopQrPolling)
                 <span v-else>加载中</span>
               </button>
             </div>
-          </el-form-item>
+          </div>
 
-          <el-button
-            type="primary"
-            size="large"
-            class="submit-btn"
-            :loading="loginLoading"
+          <button
+            type="button"
+            :class="['ui-btn', 'submit-btn', { 'is-loading': loginLoading }]"
+            :disabled="loginLoading"
             @click="handleLogin"
           >
             登录
-          </el-button>
+          </button>
 
           <div class="sso-divider">
             <span>或者</span>
           </div>
 
-          <el-button
-            type="primary"
-            size="large"
-            class="sso-btn"
-            :loading="ssoLoading"
+          <button
+            type="button"
+            :class="['ui-btn', 'sso-btn', { 'is-loading': ssoLoading }]"
+            :disabled="ssoLoading"
             @click="handleSsoLogin"
           >
-            <el-icon style="margin-right: 6px"><School /></el-icon>
+            <svg class="sso-icon" viewBox="0 0 1024 1024" aria-hidden="true">
+              <path d="M512 128 96 320l416 192 416-192-416-192zm0 240L304 272l208-96 208 96-208 96z" />
+              <path d="M224 448v192c0 53 128 96 288 96s288-43 288-96V448l-64 30v162c0 18-90 64-224 64s-224-46-224-64V478l-64-30z" />
+            </svg>
             统一身份认证登录
-          </el-button>
+          </button>
 
           <div class="demo-row">
             <span>演示账号</span>
-            <el-button
+            <button
               v-for="item in demoAccounts"
               :key="item.username"
-              link
-              type="primary"
+              type="button"
+              class="ui-link"
               @click="fill(item.username)"
             >
               {{ item.label }}
-            </el-button>
+            </button>
           </div>
-        </el-form>
+        </form>
 
         <!-- 扫码登录 -->
         <div v-else-if="activeTab === 'login' && loginMode === 'qr'" class="qr-panel">
-          <div v-loading="qrLoading" class="qr-box" @click="refreshQr">
+          <div :class="['qr-box', { 'is-loading': qrLoading }]" @click="refreshQr">
             <img v-if="qr.image" :src="qr.image" alt="登录二维码" />
             <span v-else class="qr-placeholder">点击生成二维码</span>
           </div>
@@ -521,108 +529,96 @@ onBeforeUnmount(stopQrPolling)
             用手机浏览器扫描二维码（或直接打开里面的地址），
             在确认页输入账号密码，电脑端会自动登录。
           </p>
-          <el-button link type="primary" @click="refreshQr">刷新二维码</el-button>
+          <button type="button" class="ui-link" @click="refreshQr">刷新二维码</button>
         </div>
 
         <!-- 注册 -->
-        <el-form
+        <form
           v-else-if="activeTab === 'register'"
-          label-position="top"
           class="auth-form"
           @submit.prevent
         >
           <div class="form-grid">
-            <el-form-item label="用户名">
-              <el-input
+            <div class="field"><label class="field-label">用户名</label>
+              <NativeInput
                 v-model="registerForm.username"
-                size="large"
                 placeholder="字母开头，4-20 位"
               />
-            </el-form-item>
-            <el-form-item label="姓名">
-              <el-input
+            </div>
+            <div class="field"><label class="field-label">姓名</label>
+              <NativeInput
                 v-model="registerForm.realName"
-                size="large"
                 placeholder="真实姓名"
               />
-            </el-form-item>
-            <el-form-item label="学号（选填）">
-              <el-input
+            </div>
+            <div class="field"><label class="field-label">学号（选填）</label>
+              <NativeInput
                 v-model="registerForm.userNo"
-                size="large"
                 placeholder="4-20 位字母或数字"
               />
-            </el-form-item>
-            <el-form-item label="年级（选填）">
-              <el-input v-model="registerForm.grade" size="large" placeholder="如 2024" />
-            </el-form-item>
+            </div>
+            <div class="field"><label class="field-label">年级（选填）</label>
+              <NativeInput v-model="registerForm.grade" placeholder="如 2024" />
+            </div>
           </div>
 
-          <el-form-item label="邮箱">
-            <el-input
+          <div class="field"><label class="field-label">邮箱</label>
+            <NativeInput
               v-model="registerForm.email"
-              size="large"
               placeholder="用于接收注册验证码与找回密码"
             />
-          </el-form-item>
+          </div>
 
-          <el-form-item label="邮箱验证码">
+          <div class="field"><label class="field-label">邮箱验证码</label>
             <div class="captcha-row">
-              <el-input
+              <NativeInput
                 v-model="registerForm.emailCode"
-                size="large"
                 maxlength="6"
                 placeholder="6 位数字验证码"
                 @keyup.enter="handleRegister"
               />
-              <el-button
-                type="primary"
-                class="code-btn"
-                :loading="registerCodeLoading"
+              <button
+                type="button"
+                :class="['ui-btn', 'code-btn', { 'is-loading': registerCodeLoading }]"
+                :disabled="registerCodeLoading"
                 @click="handleSendRegisterCode"
               >
                 获取验证码
-              </el-button>
+              </button>
             </div>
-          </el-form-item>
+          </div>
 
-          <el-form-item label="手机号">
-            <el-input
+          <div class="field"><label class="field-label">手机号</label>
+            <NativeInput
               v-model="registerForm.phone"
-              size="large"
               maxlength="11"
               placeholder="11 位手机号"
             />
-          </el-form-item>
+          </div>
 
           <div class="form-grid">
-            <el-form-item label="密码">
-              <el-input
+            <div class="field"><label class="field-label">密码</label>
+              <NativeInput
                 v-model="registerForm.password"
-                size="large"
                 type="password"
-                show-password
                 placeholder="设置登录密码"
               />
-            </el-form-item>
-            <el-form-item label="确认密码">
-              <el-input
+            </div>
+            <div class="field"><label class="field-label">确认密码</label>
+              <NativeInput
                 v-model="registerForm.confirmPassword"
-                size="large"
                 type="password"
-                show-password
                 placeholder="再次输入密码"
                 @keyup.enter="handleRegister"
               />
-            </el-form-item>
+            </div>
           </div>
           <p class="field-hint">{{ passwordHint }}</p>
 
-          <el-form-item label="图形验证码">
+          <div class="field"><label class="field-label">图形验证码</label>
             <div class="captcha-row">
-              <el-input
+              <NativeInput
                 v-model="captchaCode"
-                size="large"
                 maxlength="4"
                 placeholder="发码前填写图形码"
                 @keyup.enter="handleSendRegisterCode"
@@ -638,59 +634,66 @@ onBeforeUnmount(stopQrPolling)
                 <span v-else>加载中</span>
               </button>
             </div>
-          </el-form-item>
+          </div>
 
-          <el-button
-            type="primary"
-            size="large"
-            class="submit-btn"
-            :loading="registerLoading"
+          <button
+            type="button"
+            :class="['ui-btn', 'submit-btn', { 'is-loading': registerLoading }]"
+            :disabled="registerLoading"
             @click="handleRegister"
           >
             注册
-          </el-button>
-        </el-form>
+          </button>
+        </form>
 
         <!-- 忘记密码 -->
         <div v-else class="auth-form">
-          <el-form v-if="resetStep === 1" label-position="top" @submit.prevent>
-            <el-form-item label="用户名">
-              <el-input
+          <form v-if="resetStep === 1" @submit.prevent>
+            <div class="field"><label class="field-label">用户名</label>
+              <NativeInput
                 v-model="resetForm.username"
-                size="large"
                 placeholder="请输入用户名"
               />
-            </el-form-item>
+            </div>
 
-            <el-form-item label="验证方式">
-              <el-radio-group v-model="resetForm.channel" @change="refreshCaptcha">
-                <el-radio-button label="email">邮箱验证码</el-radio-button>
-                <el-radio-button label="sms">短信验证码</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
+            <div class="field"><label class="field-label">验证方式</label>
+              <div class="radio-row">
+                <button
+                  type="button"
+                  :class="['radio-item', { active: resetForm.channel === 'email' }]"
+                  @click="setChannel('email')"
+                >
+                  邮箱验证码
+                </button>
+                <button
+                  type="button"
+                  :class="['radio-item', { active: resetForm.channel === 'sms' }]"
+                  @click="setChannel('sms')"
+                >
+                  短信验证码
+                </button>
+              </div>
+            </div>
 
-            <el-form-item label="注册邮箱">
-              <el-input
+            <div class="field"><label class="field-label">注册邮箱</label>
+              <NativeInput
                 v-model="resetForm.email"
-                size="large"
                 placeholder="请输入注册时填写的邮箱"
               />
-            </el-form-item>
+            </div>
 
-            <el-form-item label="注册手机号">
-              <el-input
+            <div class="field"><label class="field-label">注册手机号</label>
+              <NativeInput
                 v-model="resetForm.phone"
-                size="large"
                 maxlength="11"
                 placeholder="请输入注册时填写的手机号"
               />
-            </el-form-item>
+            </div>
 
-            <el-form-item label="图形验证码">
+            <div class="field"><label class="field-label">图形验证码</label>
               <div class="captcha-row">
-                <el-input
+                <NativeInput
                   v-model="captchaCode"
-                  size="large"
                   maxlength="4"
                   placeholder="4 位验证码"
                   @keyup.enter="handleSendCode"
@@ -706,69 +709,62 @@ onBeforeUnmount(stopQrPolling)
                   <span v-else>加载中</span>
                 </button>
               </div>
-            </el-form-item>
+            </div>
 
-            <el-button
-              type="primary"
-              size="large"
-              class="submit-btn"
-              :loading="codeLoading"
+            <button
+              type="button"
+              :class="['ui-btn', 'submit-btn', { 'is-loading': codeLoading }]"
+              :disabled="codeLoading"
               @click="handleSendCode"
             >
               {{ resetForm.channel === 'sms' ? '发送短信验证码' : '发送邮箱验证码' }}
-            </el-button>
-          </el-form>
+            </button>
+          </form>
 
-          <el-form v-else label-position="top" @submit.prevent>
+          <form v-else @submit.prevent>
 
-            <el-form-item :label="resetForm.channel === 'sms' ? '短信验证码' : '邮箱验证码'">
-              <el-input
+            <div class="field"><label class="field-label">{{ resetForm.channel === 'sms' ? '短信验证码' : '邮箱验证码' }}</label>
+              <NativeInput
                 v-model="resetForm.code"
-                size="large"
                 maxlength="6"
                 placeholder="6 位数字验证码"
               />
-            </el-form-item>
+            </div>
 
-            <el-form-item label="新密码">
-              <el-input
+            <div class="field"><label class="field-label">新密码</label>
+              <NativeInput
                 v-model="resetForm.newPassword"
-                size="large"
                 type="password"
-                show-password
                 placeholder="设置新密码"
               />
-            </el-form-item>
+            </div>
 
-            <el-form-item label="确认新密码">
-              <el-input
+            <div class="field"><label class="field-label">确认新密码</label>
+              <NativeInput
                 v-model="resetForm.confirmPassword"
-                size="large"
                 type="password"
-                show-password
                 placeholder="再次输入新密码"
                 @keyup.enter="handleReset"
               />
-            </el-form-item>
+            </div>
             <p class="field-hint">{{ passwordHint }}</p>
 
-            <el-button
-              type="primary"
-              size="large"
-              class="submit-btn"
-              :loading="resetLoading"
+            <button
+              type="button"
+              :class="['ui-btn', 'submit-btn', { 'is-loading': resetLoading }]"
+              :disabled="resetLoading"
               @click="handleReset"
             >
               重置密码
-            </el-button>
+            </button>
 
             <div class="demo-row">
               <span>没收到验证码？</span>
-              <el-button link type="primary" :loading="codeLoading" @click="backToSend">
+              <button type="button" class="ui-link" :disabled="codeLoading" @click="backToSend">
                 重新发送
-              </el-button>
+              </button>
             </div>
-          </el-form>
+          </form>
         </div>
       </section>
     </div>
@@ -1109,5 +1105,150 @@ onBeforeUnmount(stopQrPolling)
   line-height: 1.6;
   color: #8797ae;
   text-align: center;
+}
+/* ---- 原生表单控件（替代 Element Plus，减轻首屏 JS） ---- */
+.field {
+  margin-bottom: 18px;
+}
+
+.field-label {
+  display: block;
+  padding-bottom: 8px;
+  font-size: 14px;
+  line-height: 22px;
+  color: #606266;
+}
+
+.ui-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 15px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #ffffff;
+  background: #409eff;
+  border: 1px solid #409eff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.ui-btn:hover:not(:disabled) {
+  background: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.ui-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ui-btn.is-loading {
+  color: transparent;
+}
+
+.ui-btn.is-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: ui-spin 0.8s linear infinite;
+}
+
+.ui-btn.code-btn {
+  width: 124px;
+  flex: none;
+}
+
+.ui-btn.sso-btn {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
+  border-color: transparent;
+}
+
+.ui-btn.sso-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1e40af 0%, #0284c7 100%);
+  border-color: transparent;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ui-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #409eff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ui-link:hover:not(:disabled) {
+  color: #66b1ff;
+}
+
+.ui-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sso-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  fill: currentColor;
+}
+
+.radio-row {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f1f5fb;
+  border-radius: 10px;
+}
+
+.radio-item {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #5b6b84;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-item.active {
+  color: #1f4db8;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(31, 77, 184, 0.16);
+}
+
+.qr-box.is-loading {
+  position: relative;
+}
+
+.qr-box.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
 }
 </style>

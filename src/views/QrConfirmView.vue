@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 
 import { confirmQrLoginApi, confirmQrLoginByTokenApi, getCaptchaApi } from '../api/auth'
 import { useAuthStore } from '../stores/auth'

@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { Delete, Edit, Key, Plus, Refresh, Search } from '@element-plus/icons-vue'
 
 import {

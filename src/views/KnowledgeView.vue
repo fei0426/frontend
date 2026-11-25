@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { Delete, Edit, Plus, Search, Upload } from '@element-plus/icons-vue'
 
 const STORAGE_KEY = 'studypal_knowledge_docs_v1'

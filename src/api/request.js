@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { toast as ElMessage } from '../utils/toast'
 
 /**
  * 全局唯一的请求实例。

@@ -5,10 +5,96 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>校园通 - StudyPal AI</title>
+    <style>
+      /* 首屏骨架：纯 HTML/CSS，不依赖 JS 即可绘制，避免白屏并显著降低 LCP */
+      html, body { margin: 0; height: 100%; }
+      .boot-skeleton {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          radial-gradient(circle at 12% 18%, rgba(59, 130, 246, 0.18), transparent 34%),
+          radial-gradient(circle at 88% 82%, rgba(14, 165, 233, 0.16), transparent 32%),
+          #eef2ff;
+      }
+      .boot-card {
+        width: min(980px, 92vw);
+        height: min(560px, 72vh);
+        display: flex;
+        overflow: hidden;
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+      }
+      .boot-brand {
+        width: 44%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 0 44px;
+        box-sizing: border-box;
+        color: #ffffff;
+        background: linear-gradient(160deg, #172554 0%, #1d4ed8 52%, #0ea5e9 100%);
+      }
+      .boot-logo {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .boot-name { margin: 18px 0 4px; font-size: 30px; font-weight: 700; letter-spacing: 2px; }
+      .boot-slogan { font-size: 12px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.72); }
+      .boot-title { margin: 0 0 26px; font-size: 24px; font-weight: 600; color: #0f172a; }
+      .boot-form { flex: 1; padding: 56px 48px; box-sizing: border-box; }
+      .boot-line { height: 14px; border-radius: 8px; background: #eef2f7; margin-bottom: 18px; }
+      .boot-line.title { height: 26px; width: 46%; background: #dbe3ee; margin-bottom: 28px; }
+      .boot-line.short { width: 78%; }
+      .boot-btn { height: 44px; border-radius: 10px; background: #dbeafe; margin-top: 28px; }
+      @media (max-width: 768px) {
+        .boot-brand { display: none; }
+        .boot-card { height: auto; }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <!--
+      首屏关键请求提前发起：图形验证码是登录页的 LCP 元素（<img>），
+      在 HTML 解析阶段就并行请求，省掉「等 JS 下载并执行完才发请求」的一个 RTT。
+      结果挂在 window 上，LoginView 首次渲染时直接复用。
+    -->
+    <script>
+      window.__captchaPromise = fetch('/api/v1/auth/captcha', { headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { return (j && j.data) || null; })
+        .catch(function () { return null; });
+    </script>
+    <div id="app">
+      <div class="boot-skeleton">
+        <div class="boot-card">
+          <div class="boot-brand">
+            <div class="boot-logo">SP</div>
+            <div class="boot-name">校园通</div>
+            <div class="boot-slogan">StudyPal · 统一身份门户</div>
+          </div>
+          <div class="boot-form">
+            <h2 class="boot-title">欢迎回来</h2>
+            <div class="boot-line"></div>
+            <div class="boot-line short"></div>
+            <div class="boot-line"></div>
+            <div class="boot-btn"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
-// 校园通

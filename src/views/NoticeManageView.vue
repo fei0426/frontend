@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { Bell, Plus, Refresh } from '@element-plus/icons-vue'
 
 import { notices } from '../mock/notices'

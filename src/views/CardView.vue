@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 
 // 模拟数据，接口就绪后替换为 GET /api/card/account 和 GET /api/card/transactions
 const account = ref({

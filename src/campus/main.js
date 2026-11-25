@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
 import CampusApp from './CampusApp.vue'
 import './campus.css'
 
-createApp(CampusApp).use(ElementPlus).mount('#campus-app')
+// Element Plus 组件由 unplugin-vue-components 按需引入，无需整包注册
+createApp(CampusApp).mount('#campus-app')

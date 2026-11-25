@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { getUserList, getUserRole, assignUserRole } from '../api/user'
 import { getAllRoles } from '../api/role'
 

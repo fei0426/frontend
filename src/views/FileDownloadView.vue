@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { listFiles, downloadRange } from '../api/file'
 
 const DOWNLOAD_CHUNK = 2 * 1024 * 1024 // 每段 2MB

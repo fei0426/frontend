@@ -1,12 +1,62 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Menu } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
+// 这两个样式只服务登录后的页面；放在布局里，登录页首屏就不必下载 Element Plus 基础样式
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import {
+  Bell,
+  Menu,
+  Calendar,
+  ChatDotRound,
+  Checked,
+  CreditCard,
+  DataAnalysis,
+  Download,
+  Grid,
+  Key,
+  Lock,
+  Reading,
+  School,
+  Search,
+  Setting,
+  Tickets,
+  UploadFilled,
+  User
+} from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
 import { menuTree } from '../router/menu'
 import { notices, markAllRead } from '../mock/notices'
+
+// 菜单图标用字符串配置（见 router/menu.js），图标组件只在这里注册。
+// 这样图标库不会进入登录页的首屏包，只随后台布局按需加载。
+const MENU_ICONS = {
+  'chat-dot-round': ChatDotRound,
+  school: School,
+  'credit-card': CreditCard,
+  reading: Reading,
+  calendar: Calendar,
+  grid: Grid,
+  tickets: Tickets,
+  checked: Checked,
+  'upload-filled': UploadFilled,
+  download: Download,
+  search: Search,
+  user: User,
+  setting: Setting,
+  'data-analysis': DataAnalysis,
+  key: Key,
+  lock: Lock,
+  bell: Bell
+}
+
+function iconOf(name) {
+  return MENU_ICONS[name] || Grid
+}
+
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -104,7 +154,7 @@ async function handleLogout() {
           <template v-for="node in visibleMenus" :key="node.key || node.path">
             <el-sub-menu v-if="node.children" :index="node.key">
               <template #title>
-                <el-icon><component :is="node.icon" /></el-icon>
+                <el-icon><component :is="iconOf(node.icon)" /></el-icon>
                 <span>{{ node.title }}</span>
               </template>
               <el-menu-item
@@ -112,13 +162,13 @@ async function handleLogout() {
                 :key="child.path"
                 :index="child.path"
               >
-                <el-icon><component :is="child.meta.icon" /></el-icon>
+                <el-icon><component :is="iconOf(child.meta.icon)" /></el-icon>
                 <span>{{ child.meta.title }}</span>
               </el-menu-item>
             </el-sub-menu>
 
             <el-menu-item v-else :index="node.path">
-              <el-icon><component :is="node.meta.icon" /></el-icon>
+              <el-icon><component :is="iconOf(node.meta.icon)" /></el-icon>
               <span>{{ node.meta.title }}</span>
             </el-menu-item>
           </template>
