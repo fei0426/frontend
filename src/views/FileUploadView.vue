@@ -1,8 +1,8 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import SparkMD5 from 'spark-md5'
-import { initUpload, uploadChunk, mergeUpload, uploadSmall } from '../api/file'
+import { initUpload, uploadChunk, mergeUpload, mergeUploadAsync, getMergeTaskStatus, uploadSmall } from '../api/file'
 
 const CHUNK_SIZE = 5 * 1024 * 1024 // 建议分片大小 5MB，实际切分以 init 返回的 chunkSize 为准
 const READ_SIZE = 2 * 1024 * 1024 // 计算 MD5 时每次读取 2MB，避免大文件一次性读入卡死
@@ -55,6 +55,43 @@ const chunkDone = ref(0)
 const failedChunks = ref([])
 const mergeResult = ref(null)
 
+/* ---------- 异步合并（消息队列） ---------- */
+const useAsyncMerge = ref(true) // 默认使用异步合并（消息队列模式）
+const mergeTaskId = ref('')
+const mergeTaskStatus = ref('') // PENDING / PROCESSING / SUCCESS / FAILURE
+const mergeTaskStep = ref('')   // 当前步骤描述
+const mergeProgress = ref(0)    // 合并进度 0-100
+const mergeRetryCount = ref(0)  // 重试次数
+const mergeErrorMsg = ref('')   // 失败原因
+let mergePollingTimer = null    // 轮询定时器
+
+// 合并状态显示相关
+const mergeStatusText = computed(() => {
+  switch (mergeTaskStatus.value) {
+    case 'PENDING': return '排队中'
+    case 'PROCESSING': return '处理中'
+    case 'SUCCESS': return '成功'
+    case 'FAILURE': return '失败'
+    default: return '等待中'
+  }
+})
+
+const mergeTagType = computed(() => {
+  switch (mergeTaskStatus.value) {
+    case 'PENDING': return 'info'
+    case 'PROCESSING': return ''
+    case 'SUCCESS': return 'success'
+    case 'FAILURE': return 'danger'
+    default: return 'info'
+  }
+})
+
+const mergeProgressStatus = computed(() => {
+  if (mergeTaskStatus.value === 'SUCCESS') return 'success'
+  if (mergeTaskStatus.value === 'FAILURE') return 'exception'
+  return null
+})
+
 const chunkBytes = new Map() // 每个分片已上传的字节数，进度按真实字节累计
 let uploadId = ''
 let uploadChunkSize = CHUNK_SIZE
@@ -72,6 +109,17 @@ function resetBig() {
   chunks = []
   fileMd5.value = ''
   md5Percent.value = 0
+  // 重置异步合并状态
+  mergeTaskId.value = ''
+  mergeTaskStatus.value = ''
+  mergeTaskStep.value = ''
+  mergeProgress.value = 0
+  mergeRetryCount.value = 0
+  mergeErrorMsg.value = ''
+  if (mergePollingTimer) {
+    clearInterval(mergePollingTimer)
+    mergePollingTimer = null
+  }
 }
 
 async function pickBig(e) {
@@ -247,6 +295,15 @@ async function retransmit() {
 }
 
 async function doMerge() {
+  if (useAsyncMerge.value) {
+    await doMergeAsync()
+  } else {
+    await doMergeSync()
+  }
+}
+
+// 同步合并（原有逻辑）
+async function doMergeSync() {
   try {
     const res = await mergeUpload({ uploadId })
     mergeResult.value = {
@@ -263,6 +320,79 @@ async function doMerge() {
   } finally {
     uploading.value = false
   }
+}
+
+// 异步合并（消息队列模式）
+async function doMergeAsync() {
+  try {
+    // 1. 提交异步合并任务
+    const res = await mergeUploadAsync({ uploadId })
+    mergeTaskId.value = res.taskId
+    mergeTaskStatus.value = res.status
+    mergeTaskStep.value = '任务已提交，等待处理...'
+    mergeProgress.value = 0
+
+    ElMessage.info('合并任务已提交到消息队列，正在后台处理...')
+
+    // 2. 开始轮询任务状态
+    startMergePolling()
+  } catch (err) {
+    // 如果异步接口不可用，降级为同步合并
+    console.warn('异步合并不可用，降级为同步合并:', err.message)
+    ElMessage.warning('异步合并不可用，将使用同步模式')
+    useAsyncMerge.value = false
+    await doMergeSync()
+  }
+}
+
+// 启动轮询，查询合并任务状态
+function startMergePolling() {
+  if (mergePollingTimer) clearInterval(mergePollingTimer)
+
+  mergePollingTimer = setInterval(async () => {
+    if (!mergeTaskId.value) {
+      clearInterval(mergePollingTimer)
+      mergePollingTimer = null
+      return
+    }
+
+    try {
+      const task = await getMergeTaskStatus(mergeTaskId.value)
+      mergeTaskStatus.value = task.status
+      mergeTaskStep.value = task.currentStep || ''
+      mergeProgress.value = task.progress || 0
+      mergeRetryCount.value = task.retryCount || 0
+      mergeErrorMsg.value = task.errorMsg || ''
+
+      // 上传总进度 = 上传进度(100%) + 合并进度，但合并进度只占总进度的最后一段
+      // 这里让文件上传进度条显示为 100%，额外用合并进度条展示
+      fileProgress.value = 100
+
+      if (task.status === 'SUCCESS') {
+        // 合并成功
+        mergeResult.value = {
+          fileName: task.fileName,
+          fileSize: task.fileSize,
+          storageBackend: task.storageBackend,
+          storageKey: task.storageKey,
+          fileUrl: task.fileUrl
+        }
+        clearInterval(mergePollingTimer)
+        mergePollingTimer = null
+        uploading.value = false
+        ElMessage.success('文件合并成功（消息队列异步处理）')
+      } else if (task.status === 'FAILURE') {
+        // 合并失败
+        clearInterval(mergePollingTimer)
+        mergePollingTimer = null
+        uploading.value = false
+        ElMessage.error(task.errorMsg || '合并失败')
+      }
+      // PENDING 和 PROCESSING 状态继续轮询
+    } catch (err) {
+      console.error('查询合并任务状态失败:', err)
+    }
+  }, 500) // 每 500ms 轮询一次
 }
 
 /* ---------- 小文件批量上传 ---------- */
@@ -340,7 +470,18 @@ async function startSmall() {
 
     <!-- 大文件 -->
     <div class="panel" style="margin-bottom: 16px">
-      <h3>大文件分片上传</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <h3>大文件分片上传</h3>
+        <el-tooltip content="开启后使用 Redis Streams 消息队列异步合并，后台处理，实时查看进度">
+          <el-switch
+            v-model="useAsyncMerge"
+            active-text="异步合并（消息队列）"
+            inactive-text="同步合并"
+            :disabled="uploading"
+            style="font-size: 13px"
+          />
+        </el-tooltip>
+      </div>
       <input type="file" :disabled="uploading" @change="pickBig" />
       <p v-if="bigFile" style="margin: 8px 0; color: #666">
         {{ bigFile.name }} · {{ formatSize(bigFile.size) }} · 分
@@ -356,6 +497,24 @@ async function startSmall() {
       <p style="color: #999; font-size: 13px">
         已传分片 {{ chunkDone }} / {{ chunkTotal }}，失败 {{ failedChunks.length }} 片
       </p>
+
+      <!-- 异步合并进度（消息队列模式） -->
+      <div v-if="useAsyncMerge && mergeTaskId && uploading" style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 6px; border: 1px solid #e6f7ff">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+          <span style="font-size: 13px; font-weight: 500; color: #1890ff">
+            📨 消息队列异步合并中
+          </span>
+          <el-tag :type="mergeTagType" size="small">{{ mergeStatusText }}</el-tag>
+        </div>
+        <el-progress :percentage="mergeProgress" :stroke-width="12" :status="mergeProgressStatus" />
+        <p style="margin: 6px 0 0 0; font-size: 12px; color: #666">
+          {{ mergeTaskStep }}
+          <span v-if="mergeRetryCount > 0" style="color: #e6a23c">（第 {{ mergeRetryCount }} 次重试）</span>
+        </p>
+        <p style="margin: 4px 0 0 0; font-size: 11px; color: #999">
+          任务ID：{{ mergeTaskId }}
+        </p>
+      </div>
       <el-button
         type="primary"
         :loading="uploading"

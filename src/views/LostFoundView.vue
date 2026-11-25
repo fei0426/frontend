@@ -266,40 +266,6 @@ async function handleClaim(item) {
 
               <span class="lf-status" :class="statusClass(item.status)">
                 {{ item.statusName }}
-      <el-empty v-if="!list.length" description="暂时没有相关信息" />
-
-      <div v-else class="lf-grid">
-        <article v-for="item in list" :key="item.id" class="lf-card lf-card-chat" @click="chat.openItemChat(item)">
-          <div class="lf-cover" :class="'tone-' + catMeta(item.category).tone">
-            <img v-if="item.image" :src="item.image" :alt="item.title" />
-            <el-icon v-else class="lf-cover-icon">
-              <component :is="catMeta(item.category).icon" />
-            </el-icon>
-
-            <span
-              class="lf-status"
-              :class="item.status === '寻找中' ? 'is-seeking' : 'is-done'"
-            >
-              {{ item.status }}
-            </span>
-
-            <span class="lf-views">
-              <el-icon><View /></el-icon>{{ item.views }}
-            </span>
-          </div>
-
-          <div class="lf-card-body">
-            <h3 class="lf-card-title">{{ item.title }}</h3>
-
-            <span class="lf-category">{{ item.category }}</span>
-
-            <div class="lf-meta">
-              <span class="lf-meta-row">
-                <el-icon><Location /></el-icon>{{ item.place }}
-              </span>
-
-              <span class="lf-views">
-                <el-icon><View /></el-icon>{{ item.viewCount }}
               </span>
             </div>
 
@@ -330,29 +296,15 @@ async function handleClaim(item) {
                   >
                     标记已找到
                   </el-button>
-                  <span class="lf-comments">
+                  <button
+                    type="button"
+                    class="lf-comments"
+                    @click.stop="chat.openItemChat(item)"
+                  >
                     <el-icon><ChatDotRound /></el-icon>{{ item.commentCount }}
-                  </span>
+                  </button>
                 </span>
               </div>
-            <p class="lf-desc">{{ item.desc }}</p>
-
-            <div class="lf-card-foot">
-              <span>发布者：{{ item.publisher }}</span>
-              <span class="lf-foot-right">
-                <el-button
-                  v-if="item.mine && item.status === '寻找中'"
-                  link
-                  type="primary"
-                  size="small"
-                  @click.stop="handleClaim(item)"
-                >
-                  标记已找到
-                </el-button>
-                <button type="button" class="lf-comments" @click.stop="chat.openItemChat(item)">
-                  <el-icon><ChatDotRound /></el-icon>{{ item.comments }}
-                </button>
-              </span>
             </div>
           </article>
         </div>
@@ -669,8 +621,6 @@ async function handleClaim(item) {
   .lf-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-.lf-card-chat {
-  cursor: pointer;
 }
 
 .lf-comments {
@@ -680,12 +630,12 @@ async function handleClaim(item) {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--lf-soft);
+  color: var(--sp-faint);
   font-size: 13px;
   cursor: pointer;
 }
 
 .lf-comments:hover {
-  color: var(--lf-primary);
+  color: var(--sp-primary);
 }
 </style>

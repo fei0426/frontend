@@ -46,9 +46,29 @@ export async function uploadChunk({ uploadId, index, chunkMd5, blob, onProgress,
   return unwrap(res)
 }
 
-// 分片全部到齐后合并
+// 分片全部到齐后合并（同步）
 export async function mergeUpload({ uploadId }) {
   const res = await request.post('/file/merge', { uploadId })
+  return unwrap(res)
+}
+
+/* ==================== 异步合并（消息队列） ==================== */
+
+/**
+ * 提交异步合并任务（基于 Redis Streams 消息队列）
+ * 立即返回 taskId，前端通过轮询 getMergeTaskStatus 获取进度
+ */
+export async function mergeUploadAsync({ uploadId }) {
+  const res = await request.post('/file/merge/async', { uploadId })
+  return unwrap(res)
+}
+
+/**
+ * 查询异步合并任务状态
+ * 返回任务状态、进度百分比、当前步骤、成功/失败信息等
+ */
+export async function getMergeTaskStatus(taskId) {
+  const res = await request.get('/file/merge/task', { params: { taskId } })
   return unwrap(res)
 }
 
