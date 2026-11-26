@@ -133,3 +133,34 @@ function redirectToLogin() {
   color: #94a3b8;
 }
 </style>
+
+<style scoped>
+.sso-callback-page {
+  background: var(--sp-canvas);
+}
+
+.sso-callback-box {
+  border: 1px solid var(--sp-border);
+  border-radius: 16px;
+  box-shadow: var(--sp-shadow-float);
+}
+
+.loading-icon {
+  color: var(--sp-primary);
+}
+
+.error-icon,
+.error-title,
+.error-desc {
+  color: var(--sp-danger);
+}
+
+.error-title {
+  color: var(--sp-ink);
+}
+
+.sso-desc,
+.redirect-tip {
+  color: var(--sp-muted);
+}
+</style>

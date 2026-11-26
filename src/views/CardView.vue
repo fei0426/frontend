@@ -146,3 +146,94 @@ async function handleLost() {
   color: #303133;
 }
 </style>
+
+<style scoped>
+.overview {
+  grid-template-columns: minmax(320px, 0.9fr) minmax(300px, 1.1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.balance-card {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--sp-ink);
+  background: var(--sp-ink);
+}
+
+.balance-card::after {
+  position: absolute;
+  right: -56px;
+  bottom: -84px;
+  width: 200px;
+  height: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  content: "";
+}
+
+.balance-card .stat-label {
+  color: #a8c7bb;
+}
+
+.balance-value {
+  margin: 10px 0 8px;
+  color: #fff;
+  font-size: 38px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+.balance-card .muted {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.balance-actions {
+  position: relative;
+  z-index: 1;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.balance-actions :deep(.el-button--primary) {
+  border-color: #fff;
+  background: #fff;
+  color: var(--sp-ink);
+}
+
+.balance-actions :deep(.el-button--default) {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.overview > .panel:not(.balance-card) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.overview .stat-value {
+  margin: 12px 0 2px;
+}
+
+.status-tip {
+  max-width: 460px;
+  font-size: 12px;
+}
+
+.amount-in {
+  color: var(--sp-primary);
+  font-weight: 650;
+}
+
+.amount-out {
+  color: var(--sp-text);
+}
+
+@media (max-width: 1180px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

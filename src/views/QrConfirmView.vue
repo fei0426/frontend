@@ -241,3 +241,30 @@ h1 {
   text-align: center;
 }
 </style>
+
+<style scoped>
+.confirm-page {
+  background: var(--sp-canvas);
+}
+
+.confirm-card {
+  border: 1px solid var(--sp-border);
+  border-radius: 18px;
+  box-shadow: var(--sp-shadow-float);
+}
+
+.title {
+  color: var(--sp-ink);
+}
+
+.subtitle,
+.one-tap-tip,
+.divider {
+  color: var(--sp-muted);
+}
+
+.one-tap {
+  border-color: var(--sp-border);
+  background: var(--sp-surface-soft);
+}
+</style>

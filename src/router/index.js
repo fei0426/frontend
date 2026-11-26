@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
+import BasicLayout from '../layout/BasicLayout.vue'
 import LoginView from '../views/LoginView.vue'
+import ForbiddenView from '../views/ForbiddenView.vue'
 import { menuRoutes, extraRoutes } from './menu'
 
 import { useAuthStore } from '../stores/auth'
@@ -17,15 +19,15 @@ const routes = [
   { path: '/sso-callback', name: 'sso-callback', component: () => import('../views/SsoCallbackView.vue'), meta: { requiresAuth: false } },
   {
     path: '/',
-    component: () => import('../layout/BasicLayout.vue'),
-    redirect: '/profile',
+    component: BasicLayout,
+    redirect: '/home',
     children: [
       ...menuRoutes,
       ...extraRoutes,
       {
         path: '/403',
         name: 'forbidden',
-        component: () => import('../views/ForbiddenView.vue'),
+        component: ForbiddenView,
         meta: { title: '无访问权限' }
       }
     ]
