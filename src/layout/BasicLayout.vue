@@ -2,7 +2,58 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, Bell, Menu, School, SwitchButton, User } from '@element-plus/icons-vue'
+import {
+  ArrowDown,
+  Bell,
+  Calendar,
+  ChatDotRound,
+  Checked,
+  CreditCard,
+  DataAnalysis,
+  Download,
+  Grid,
+  HomeFilled,
+  Key,
+  Lock,
+  Menu,
+  Reading,
+  School,
+  Search,
+  Setting,
+  SwitchButton,
+  Tickets,
+  UploadFilled,
+  User
+} from '@element-plus/icons-vue'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+
+// 菜单里的 icon 存字符串名，这里映射成真正的组件；
+// 这样 router/menu.js 不必静态引入图标库，登录页无需为侧边栏图标加载 40KB。
+const MENU_ICONS = {
+  'home-filled': HomeFilled,
+  'chat-dot-round': ChatDotRound,
+  'credit-card': CreditCard,
+  reading: Reading,
+  calendar: Calendar,
+  grid: Grid,
+  tickets: Tickets,
+  checked: Checked,
+  'upload-filled': UploadFilled,
+  download: Download,
+  search: Search,
+  user: User,
+  'data-analysis': DataAnalysis,
+  key: Key,
+  lock: Lock,
+  bell: Bell,
+  school: School,
+  setting: Setting
+}
+
+function iconOf(name) {
+  return MENU_ICONS[name] || Grid
+}
 
 import { useAuthStore } from '../stores/auth'
 import { menuTree } from '../router/menu'
@@ -117,7 +168,7 @@ function handleUserCommand(command) {
           <template v-for="node in visibleMenus" :key="node.key || node.path">
             <el-sub-menu v-if="node.children" :index="node.key">
               <template #title>
-                <el-icon><component :is="node.icon" /></el-icon>
+                <el-icon><component :is="iconOf(node.icon)" /></el-icon>
                 <span>{{ node.title }}</span>
               </template>
               <el-menu-item
@@ -125,13 +176,13 @@ function handleUserCommand(command) {
                 :key="child.path"
                 :index="child.path"
               >
-                <el-icon><component :is="child.meta.icon" /></el-icon>
+                <el-icon><component :is="iconOf(child.meta.icon)" /></el-icon>
                 <span>{{ child.meta.title }}</span>
               </el-menu-item>
             </el-sub-menu>
 
             <el-menu-item v-else :index="node.path">
-              <el-icon><component :is="node.meta.icon" /></el-icon>
+              <el-icon><component :is="iconOf(node.meta.icon)" /></el-icon>
               <span>{{ node.meta.title }}</span>
             </el-menu-item>
           </template>

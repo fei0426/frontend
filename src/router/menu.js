@@ -1,50 +1,12 @@
-import {
-  Bell,
-  Calendar,
-  ChatDotRound,
-  Checked,
-  CreditCard,
-  DataAnalysis,
-  Download,
-  Grid,
-  HomeFilled,
-  Key,
-  Lock,
-  Reading,
-  School,
-  Search,
-  Setting,
-  Tickets,
-  UploadFilled,
-  User
-} from '@element-plus/icons-vue'
 
-import ChatView from '../views/ChatView.vue'
-import HomeView from '../views/HomeView.vue'
-import CardView from '../views/CardView.vue'
-import LibraryView from '../views/LibraryView.vue'
-import ScheduleView from '../views/ScheduleView.vue'
-import ServicesView from '../views/ServicesView.vue'
-import ServiceApplyView from '../views/ServiceApplyView.vue'
-import MyRequestsView from '../views/MyRequestsView.vue'
-import ApprovalView from '../views/ApprovalView.vue'
-import LostFoundView from '../views/LostFoundView.vue'
-import LostFoundDetailView from '../views/LostFoundDetailView.vue'
-import NoticeView from '../views/NoticeView.vue'
-import ProfileView from '../views/ProfileView.vue'
-import KnowledgeView from '../views/KnowledgeView.vue'
-import UserManageView from '../views/UserManageView.vue'
-import RoleManageView from '../views/RoleManageView.vue'
-import PermissionManageView from '../views/PermissionManageView.vue'
-import AuditLogView from '../views/AuditLogView.vue'
-import OperationDashboardView from '../views/OperationDashboardView.vue'
-import NoticeManageView from '../views/NoticeManageView.vue'
-import FileUploadView from '../views/FileUploadView.vue'
-import FileDownloadView from '../views/FileDownloadView.vue'
-
-/** 菜单项工厂。meta.permission 为空表示所有登录用户可见。 */
-function item(path, name, component, title, permission, icon) {
-  return { path, name, component, meta: { title, permission, icon } }
+/**
+ * 菜单项工厂。meta.permission 为空表示所有登录用户可见。
+ * component 一律传懒加载函数，让每个页面单独打包，避免首屏把 20 个页面全部下载。
+ */
+// 说明：菜单图标统一用字符串名，真正的图标组件在 layout/BasicLayout.vue 里注册。
+// 这样登录页不需要为了侧边栏图标而加载整个图标库（约 40KB gzip）。
+function item(path, name, load, title, permission, icon) {
+  return { path, name, component: load, meta: { title, permission, icon } }
 }
 
 /**
@@ -52,51 +14,51 @@ function item(path, name, component, title, permission, icon) {
  * 菜单和路由表共用这一份数据，避免两头维护对不上。
  */
 export const menuTree = [
-  item('/home', 'home', HomeView, '首页', '', HomeFilled),
-  item('/chat', 'chat', ChatView, '智能问答', 'qa:chat:list', ChatDotRound),
+  item('/home', 'home', () => import('../views/HomeView.vue'), '首页', '', 'home-filled'),
+  item('/chat', 'chat', () => import('../views/ChatView.vue'), '智能问答', 'qa:chat:list', 'chat-dot-round'),
   {
     key: 'campus',
     title: '校园服务',
-    icon: School,
+    icon: 'school',
     children: [
-      item('/card', 'card', CardView, '一卡通', 'campus:card:list', CreditCard),
-      item('/library', 'library', LibraryView, '图书馆', 'campus:library:list', Reading),
-      item('/schedule', 'schedule', ScheduleView, '日程课表', 'campus:schedule:list', Calendar)
+      item('/card', 'card', () => import('../views/CardView.vue'), '一卡通', 'campus:card:list', 'credit-card'),
+      item('/library', 'library', () => import('../views/LibraryView.vue'), '图书馆', 'campus:library:list', 'reading'),
+      item('/schedule', 'schedule', () => import('../views/ScheduleView.vue'), '日程课表', 'campus:schedule:list', 'calendar')
     ]
   },
   {
     key: 'service',
     title: '事务办理',
-    icon: Grid,
+    icon: 'grid',
     children: [
-      item('/services', 'services', ServicesView, '服务事项', 'service:item:list', Grid),
-      item('/my-requests', 'my-requests', MyRequestsView, '我的申请', 'service:request:list', Tickets),
-      item('/approvals', 'approvals', ApprovalView, '待办审批', 'service:approval:list', Checked)
+      item('/services', 'services', () => import('../views/ServicesView.vue'), '服务事项', 'service:item:list', 'grid'),
+      item('/my-requests', 'my-requests', () => import('../views/MyRequestsView.vue'), '我的申请', 'service:request:list', 'tickets'),
+      item('/approvals', 'approvals', () => import('../views/ApprovalView.vue'), '待办审批', 'service:approval:list', 'checked')
     ]
   },
   {
     key: 'file',
     title: '文件中心',
-    icon: UploadFilled,
+    icon: 'upload-filled',
     children: [
-      item('/files/upload', 'file-upload', FileUploadView, '文件上传', 'file:storage:upload', UploadFilled),
-      item('/files/download', 'file-download', FileDownloadView, '文件下载', 'file:storage:download', Download)
+      item('/files/upload', 'file-upload', () => import('../views/FileUploadView.vue'), '文件上传', 'file:storage:upload', 'upload-filled'),
+      item('/files/download', 'file-download', () => import('../views/FileDownloadView.vue'), '文件下载', 'file:storage:download', 'download')
     ]
   },
-  item('/lostfound', 'lostfound', LostFoundView, '失物招领', 'lost:item:list', Search),
-  item('/profile', 'profile', ProfileView, '个人中心', '', User),
+  item('/lostfound', 'lostfound', () => import('../views/LostFoundView.vue'), '失物招领', 'lost:item:list', 'search'),
+  item('/profile', 'profile', () => import('../views/ProfileView.vue'), '个人中心', '', 'user'),
   {
     key: 'admin',
     title: '管理后台',
-    icon: Setting,
+    icon: 'setting',
     children: [
-      item('/ops', 'ops', OperationDashboardView, '运营分析', 'system:audit:view', DataAnalysis),
-      item('/users', 'users', UserManageView, '用户管理', 'system:user:list', User),
-      item('/roles', 'roles', RoleManageView, '角色管理', 'system:role:list', Key),
-      item('/permissions', 'permissions', PermissionManageView, '权限管理', 'system:permission:list', Lock),
-      item('/audit-logs', 'audit-logs', AuditLogView, '审计日志', 'system:audit:view', DataAnalysis),
-      item('/notices/manage', 'notice-manage', NoticeManageView, '通知发布', 'notice:notice:publish', Bell),
-      item('/knowledge', 'knowledge', KnowledgeView, '知识库管理', 'qa:knowledge:list', Grid)
+      item('/ops', 'ops', () => import('../views/OperationDashboardView.vue'), '运营分析', 'system:audit:view', 'data-analysis'),
+      item('/users', 'users', () => import('../views/UserManageView.vue'), '用户管理', 'system:user:list', 'user'),
+      item('/roles', 'roles', () => import('../views/RoleManageView.vue'), '角色管理', 'system:role:list', 'key'),
+      item('/permissions', 'permissions', () => import('../views/PermissionManageView.vue'), '权限管理', 'system:permission:list', 'lock'),
+      item('/audit-logs', 'audit-logs', () => import('../views/AuditLogView.vue'), '审计日志', 'system:audit:view', 'data-analysis'),
+      item('/notices/manage', 'notice-manage', () => import('../views/NoticeManageView.vue'), '通知发布', 'notice:notice:publish', 'bell'),
+      item('/knowledge', 'knowledge', () => import('../views/KnowledgeView.vue'), '知识库管理', 'qa:knowledge:list', 'grid')
     ]
   }
 ]
@@ -109,19 +71,19 @@ export const extraRoutes = [
   {
     path: '/lostfound/:id',
     name: 'lostfound-detail',
-    component: LostFoundDetailView,
+    component: () => import('../views/LostFoundDetailView.vue'),
     meta: { title: '物品详情', permission: 'lost:item:list' }
   },
   {
     path: '/services/:id/apply',
     name: 'service-apply',
-    component: ServiceApplyView,
+    component: () => import('../views/ServiceApplyView.vue'),
     meta: { title: '事项申请', permission: 'service:request:submit' }
   },
   {
     path: '/notices',
     name: 'notices',
-    component: NoticeView,
+    component: () => import('../views/NoticeView.vue'),
     meta: { title: '通知公告', permission: 'notice:notice:list' }
   }
 ]

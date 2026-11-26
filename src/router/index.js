@@ -1,8 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-import BasicLayout from '../layout/BasicLayout.vue'
+// 首屏优化：BasicLayout / ForbiddenView 必须懒加载，静态引入会把整个 Element Plus（菜单、滚动容器、图标、全量样式）打进首屏入口。
 import LoginView from '../views/LoginView.vue'
-import ForbiddenView from '../views/ForbiddenView.vue'
 import { menuRoutes, extraRoutes } from './menu'
 
 import { useAuthStore } from '../stores/auth'
@@ -19,7 +18,7 @@ const routes = [
   { path: '/sso-callback', name: 'sso-callback', component: () => import('../views/SsoCallbackView.vue'), meta: { requiresAuth: false } },
   {
     path: '/',
-    component: BasicLayout,
+    component: () => import('../layout/BasicLayout.vue'),
     redirect: '/home',
     children: [
       ...menuRoutes,
@@ -27,7 +26,7 @@ const routes = [
       {
         path: '/403',
         name: 'forbidden',
-        component: ForbiddenView,
+        component: () => import('../views/ForbiddenView.vue'),
         meta: { title: '无访问权限' }
       }
     ]
